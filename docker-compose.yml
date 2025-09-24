@@ -1,44 +1,40 @@
 services:
-  mongo:
+  db:
     image: mongo:7
     container_name: Sorby_mongo
     restart: always
     volumes:
       - mongo_data:/data/db
+    ports:
+      - "27018:27017"             # Mongo accesible en tu host:27018 (opc.)
+    networks: [sorbynet]
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand({ ping: 1 })"]
       interval: 20s
       timeout: 5s
       retries: 5
-    networks: [sorbynet2]
 
   app:
-    build: { context: ., dockerfile: Dockerfile }
-    container_name: Sorby_chat
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sorby-chat
     restart: always
-    working_dir: /app
-    command: ["npm", "start"]
-    ports:
-      - "3000:3000"                 # http://localhost:3000
-    env_file: .env
-    environment:
-      NODE_ENV: development
-      # Mongo interno (DNS de Docker): NO usar localhost
-      MONGO_URI: "mongodb://mongo:27017/SorbyDb"
-      # Para que el server escuche dentro del contenedor y sea accesible desde el host
-      HOST: "0.0.0.0"
-      PORT: "3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    # bind de TODO el repo (incluye tu .env que la app lee con dotenv)
     volumes:
       - .:/app
-      - /app/node_modules
-    depends_on:
-      mongo:
-        condition: service_healthy
-    networks: [sorbynet2]
+    # tu app escucha en 3002 (según tu index.js)
+    ports:
+      - "3002:3002"
+    command: ["npm", "start"]
+    networks: [sorbynet]
 
 volumes:
   mongo_data:
 
 networks:
-  sorbynet2:
+  sorbynet:
     driver: bridge

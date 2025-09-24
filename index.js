@@ -1,6 +1,10 @@
 require('dotenv/config');
+const PORT = process.env.PORT || 3010;
 const connectToMongoDB = require("./src/Utiles/mongoDB/dBconnect");
-const connectToWhatsApp = require('./src/Utiles/Mensajes/whatsapp');
+const {connectToWhatsApp, router: whatsappRouter,} = require("./src/Utiles/Mensajes/whatsapp");
+const express = require("express");
+const cors = require('cors');
+const indexRoutes = require("./src/routes/index.routes");
 
 const startBot = async () => {
     const sock = await connectToWhatsApp();
