@@ -15,6 +15,12 @@ const db = admin.firestore();
 
 // Middleware de autenticación
 const authenticate = async (req, res, next) => {
+
+    if (process.env.NODE_ENV === 'development') {
+    req.user = { uid: 'dev', email: 'dev@sorby.local', dev: true };
+    return next();
+  }
+
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {

@@ -2,6 +2,7 @@ const { analizarIntencion } = require('../../Utiles/Chatgpt/AnalizarIntencion');
 const FlowManager = require('../../FlowControl/FlowManager');
 const { enviarErrorPorWhatsapp } = require("../../services/Excepcion/manejoErrores");
 const enviarMensaje = require("../../services/EnviarMensaje/EnviarMensaje");
+const testAndSaveFlow = require('../Prueba/testAndSaveFlow');
 
 
 const defaultFlow = {
@@ -29,6 +30,11 @@ const defaultFlow = {
                 
                 case "NoRegistrado":
                     console.log("NO REGISTRADO");
+                    break;
+
+                case "TESTANDSAVE":
+                    await enviarMensaje(userId, 'buen mensaje');
+                    await testAndSaveFlow.start(userId, result.data);
                     break;
             }
 

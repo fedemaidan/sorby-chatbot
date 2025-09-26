@@ -1,12 +1,17 @@
 const FlowManager = require('../FlowControl/FlowManager');
 const defaultFlow = require('../Flows/INIT/INIT');
-
+const testAndSaveFlow = require('../Flows/Prueba/testAndSaveFlow');
 class FlowMapper {
     async handleMessage(userId, message, messageType) {
         let flow = await FlowManager.getFlow(userId);
 
         if (flow && flow.flowName) {
             switch (flow.flowName) {
+
+                case 'TESTANDSAVE':
+                await testAndSaveFlow.Handle(userId, message, flow.currentStep, messageType);
+
+                break;
 
                 case 'DEFAULT':
                     await EgresoMaterialesFlow.Handle(userId, message, flow.currentStep, messageType);

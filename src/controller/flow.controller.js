@@ -1,5 +1,5 @@
 // src/controllers/flow.controller.js
-const flowService = require("../services/flow/flowService"); // ajustá el path si difiere
+const FlowService = require("../services/flow/flowService");
 
 // Captura errores async y delega al middleware de errores
 const asyncHandler = (fn) => (req, res, next) =>
@@ -14,7 +14,8 @@ const toInt = (v, def) => {
 const isObj = (v) => v && typeof v === "object" && !Array.isArray(v);
 
 module.exports = {
-  // POST /flows
+  // POST /flows/create  (recomendado)a
+  // si mantenés POST /flows, también sirve
   create: asyncHandler(async (req, res) => {
     const payload = {
       userId: normStr(req.body.userId),
@@ -22,45 +23,43 @@ module.exports = {
       step: normStr(req.body.step),
       flowData: isObj(req.body.flowData) ? req.body.flowData : {},
     };
-
-    const created = await flowService.createFlow(payload);
+    const created = await FlowService.createFlow(payload);
     return res.status(201).json(created);
   }),
 
-  // PATCH /flows/:userId/:flow/step
+  // POST /flows/setStep  (en vez de PATCH /:userId/:flow/step)
   setStep: asyncHandler(async (req, res) => {
     const payload = {
-      userId: normStr(req.params.userId),
-      flow: normStr(req.params.flow),
+      userId: normStr(req.body.userId),
+      flow: normStr(req.body.flow),
       step: normStr(req.body.step),
     };
-
-    const updated = await flowService.setStep(payload);
+    const updated = await FlowService.setStep(payload);
     return res.json(updated);
   }),
 
-  // GET /flows/:userId/:flow
-  getByUserFlow: asyncHandler(async (req, res) => {
+  // POST /flows/getByUserId  (en vez de GET /:userId)
+  getFlowByUserId: asyncHandler(async (req, res) => {
     const payload = {
-      userId: normStr(req.params.userId),
-      flow: normStr(req.params.flow),
+      userId: normStr(req.body.userId),
     };
-
-    const found = await flowService.getFlowByUserAndFlow(payload);
+    const found = await FlowService.getFlowByUserId(payload);
     if (!found) return res.status(404).json({ error: "Flow no encontrado" });
     return res.json(found);
   }),
 
-  // GET /flows?userId=...&page=1&pageSize=20&sort=-updatedAt
-  listByUser: asyncHandler(async (req, res) => {
-    const payload = {
-      userId: normStr(req.query.userId),
-      page: toInt(req.query.page, 1),
-      pageSize: toInt(req.query.pageSize, 20),
-      sort: normStr(req.query.sort || "-updatedAt"),
-    };
-
-    const result = await flowService.listByUser(payload);
+  // POST /flows/listByUser  (en vez de GET ?userId=...&page=...)
+  listAllUsers: asyncHandler(async (req, res) => {
+    const result = await FlowService.listAllUsers();
     return res.json(result); // { items, page, pageSize, total }
+  }),
+
+  // POST /flows/deleteByUserId  (en vez de DELETE /:userId)
+  deleteByUserId: asyncHandler(async (req, res) => {
+    const payload = {
+      userId: normStr(req.body.userId),
+    };
+    const out = await FlowService.deleteByUserId(payload);
+    return res.json(out); // { deletedCount }
   }),
 };

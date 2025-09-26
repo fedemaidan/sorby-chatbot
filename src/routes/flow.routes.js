@@ -2,14 +2,11 @@
 const express = require('express');
 const { authenticate } = require('../Utiles/Firebase/firebaseUtils');
 const ctrl = require('../controller/flow.controller');
-
 const router = express.Router();
 
-// Endpoints reales de Flow
-router.post('/', authenticate, ctrl.create);
-router.get('/', authenticate, ctrl.listByUser);
-router.get('/:userId/:flow', authenticate, ctrl.getByUserFlow);
-router.patch('/:userId/:flow/step', authenticate, ctrl.setStep);
-
-
+router.post('/create', authenticate, ctrl.create);                 // { userId, flow, step?, flowData? }
+router.post('/getByUserId', authenticate, ctrl.getFlowByUserId);   // { userId }
+router.post('/listAllUsers', authenticate, ctrl.listAllUsers);         // { userId, page?, pageSize?, sort? }
+router.post('/setStep', authenticate, ctrl.setStep);               // { userId, flow, step }
+router.post('/deleteByUserId', authenticate, ctrl.deleteByUserId); // { userId } (o hacé deleteByUserAndFlow)
 module.exports = router;
