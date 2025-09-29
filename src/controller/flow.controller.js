@@ -32,6 +32,7 @@ module.exports = {
     const payload = {
       userId: normStr(req.body.userId),
     };
+    console.log("Controller - getFlowByUserId - payload:", payload);
     const found = await FlowService.getFlowByUserId(payload);
     if (!found) return res.status(404).json({ error: "Flow no encontrado" });
     return res.json(found);
@@ -43,12 +44,30 @@ module.exports = {
     return res.json(result); // { items, page, pageSize, total }
   }),
 
+ updateFlowByUserId: asyncHandler(async (req, res) => {
+    const payload = {
+      userId: normStr(req.body.userId),
+      flow: normStr(req.body.flow),
+      step: normStr(req.body.step),
+      flowData: isObj(req.body.flowData) ? req.body.flowData : {},
+    };
+
+    if (!payload.userId) {
+      return res.status(400).json({ error: "userId requerido" });
+    }
+
+    const updated = await FlowService.updateFlowByUserId(payload);
+    if (!updated) return res.status(404).json({ error: "Flow no encontrado para ese userId" });
+
+    return res.json(updated);
+  }),
+
   // POST /flows/deleteByUserId  (en vez de DELETE /:userId)
   deleteByUserId: asyncHandler(async (req, res) => {
     const payload = {
       userId: normStr(req.body.userId),
     };
-    const out = await FlowService.deleteByUserId(payload);
+    const out = await FlowService.deleteFlowByUserId(payload);
     return res.json(out); // { deletedCount }
   }),
 };
