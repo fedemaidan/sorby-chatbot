@@ -4,7 +4,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Instalamos las dependencias necesarias
-RUN apt-get update && apt-get install -y ffmpeg postgresql-client poppler-utils
+RUN apt-get update && apt-get install
 
 # Instalamos las dependencias de la aplicación
 RUN npm install

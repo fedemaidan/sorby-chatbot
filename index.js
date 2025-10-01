@@ -1,6 +1,10 @@
 require('dotenv/config');
+const PORT = process.env.PORT || 3010;
 const connectToMongoDB = require("./src/Utiles/mongoDB/dBconnect");
-const connectToWhatsApp = require('./src/Utiles/Mensajes/whatsapp');
+const {connectToWhatsApp, router: whatsappRouter,} = require("./src/Utiles/Mensajes/whatsapp");
+const express = require("express");
+const cors = require('cors');
+const indexRoutes = require("./src/routes/index.routes");
 
 const startBot = async () => {
     const sock = await connectToWhatsApp();
@@ -12,6 +16,7 @@ const startApi = async () => {
   app.use(
     cors({
       origin: [
+        "http://localhost:3002",
         "http://localhost:3000",
         "http://localhost:4000",
         "http://127.0.0.1:3000",

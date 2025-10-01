@@ -12,8 +12,7 @@ const QRCode = require("qrcode");
 const express = require("express");
 const sockSingleton = require("../../services/SockSingleton/sockSingleton");
 
-const app = express();
-const PORT = 3002;
+const PORT = process.env.PORT || 3010;
 const router = express.Router();
 
 // Variable para almacenar el último QR generado (si se requiere)
@@ -49,9 +48,7 @@ const connectToWhatsApp = async () => {
 
     if (qr) {
       latestQR = qr;
-      console.log(
-        "QR actualizado. Escanea en: http://localhost:3002/api/whatsapp/qr"
-      );
+      console.log("QR actualizado. Escanea en: http://localhost:"+PORT+"/api/whatsapp/qr");
     }
 
     if (connection === "close") {

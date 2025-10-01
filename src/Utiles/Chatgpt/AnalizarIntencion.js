@@ -2,21 +2,10 @@ const { getByChatGpt4o } = require("./Base");
 
 const opciones = [
     {
-        //permiso: "CREAR_RUTA",
-        accion: "Crear ruta",
-        descripcion: "Puesta en marcha por parte del encargado de logística para operar la hoja de ruta. tipicamente iniciado como *hdr [ID_CAB]*",
+        accion: "TESTANDSAVE",
+        descripcion: "La persona te mando un mensaje coherente, necesito guardar dicho mensaje !!!, necesito que guardes el mensaje completo que te envio el usuario",
         data: {
-            id_cab: "Número de ID de la hoja de ruta a la que se hace referencia en el mensaje."
-        }
-    },
-      {
-        //permiso: "Obtener datos",
-        accion: "Info HDR",
-        descripcion: "Se quiere reiniciar la hoja de ruta, por parte del personal de logistica. (pueden ser los 2 datos o 1 solo)",
-        data: 
-        {
-            id_cab: "Número de ID de la hoja de ruta a la que se hace referencia en el mensaje.",
-            telefonoInvolucrado: "Numero de telefono perteneciente a la hoja de ruta"
+            mensaje: "aca va el texto del mensaje enviado por el usuario. y agregalo un comentario como, chatGPT: muy bueno, al final"
         }
     },
     {

@@ -1,59 +1,40 @@
+const repo = require("../../repository/flow.repository");
 
+async function createFlow({ userId, flow, step, flowData }) {
+console.log("Creating flow for userId:", userId,);
+  return repo.create({ userId, flow, step, flowData });
+}
 
-const FlowService = {
-    async createFlow(data) {
-        try {
-            return await Flow.create(data);
-        } catch (error) {
-            console.error('🛑 Error al crear flow:', error);
-            throw error;
-        }
-    },
+async function getFlowByUserId({ userId }) {
+console.log("Getting flow for userId:", userId);
+  return repo.getFlowByUserId({ userId });
+}
 
-    async getFlowById(id) {
-        try {
-            // SOLO usar si el campo "id" es UUID
-            return await Flow.findByPk(id);
-        } catch (error) {
-            console.error('🛑 Error al obtener flow por ID (findByPk):', error);
-            throw error;
-        }
-    },
+async function listAllUsers() {
+console.log("Listing all users with flows");
+  return repo.listAllUsers();
+}
 
-    async getFlowByUserId(userId) {
-        try {
-            return await Flow.findOne({ where: { userId } }); // ✅ correcta para WhatsApp ID
-        } catch (error) {
-            console.error(`🛑 Error al obtener flow por userId (${userId}):`, error);
-            throw error;
-        }
-    },
+async function setStep({ userId, flow, step }) {
+console.log("Setting step for userId:", userId, "to step:", step);
+  return repo.updateFlowByUserId({ userId, flow, step });
+}
 
-    async updateFlowByUserId(userId, newData) {
-        try {
-            const flowInstance = await Flow.findOne({ where: { userId } });
-            if (!flowInstance) throw new Error('Flow no encontrado para userId');
+async function updateFlowByUserId({ userId, flow, step, flowData }) {
+console.log("Updating flow for userId:", userId, "with step:", step, "and flowData:", flowData);
+  return repo.updateFlowByUserId({ userId, flow, step, flowData });
+}
 
-            await flowInstance.update(newData);
-            return flowInstance;
-        } catch (error) {
-            console.error(`🛑 Error al actualizar flow para userId (${userId}):`, error);
-            throw error;
-        }
-    },
+async function deleteFlowByUserId({ userId, flow }) {
+console.log("Deleting flow for userId:", userId);
+  return repo.deleteFlowByUserId({ userId, flow });
+}
 
-    async deleteFlowByUserId(userId) {
-        try {
-            const flowInstance = await Flow.findOne({ where: { userId } });
-            if (!flowInstance) throw new Error('Flow no encontrado para userId');
-
-            await flowInstance.destroy();
-            return { message: 'Flow eliminado correctamente' };
-        } catch (error) {
-            console.error(`🛑 Error al eliminar flow para userId (${userId}):`, error);
-            throw error;
-        }
-    }
+module.exports = {
+  createFlow,
+  getFlowByUserId,
+  listAllUsers,
+  setStep,
+  deleteFlowByUserId,
+  updateFlowByUserId
 };
-
-module.exports = FlowService;
