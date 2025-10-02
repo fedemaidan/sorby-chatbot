@@ -35,10 +35,11 @@ class SockSingleton {
                 if (!msg.message || msg.key.fromMe) return;
 
                 const sender = msg.key.remoteJid;
-                console.log("📩📩📩📩📩📩📩📩📩📩📩📩📩📩📩📩📩", msg.key);
+
                 const messageType = GetMessageType(msg.message);
                 const displayName = msg.pushName || "Cliente";
                 const senderLid = msg.key.senderLid
+                
                 console.log("lid del sender: ", senderLid);
                 await messageResponder(messageType, msg, sender, displayName, senderLid);
             }

@@ -1,38 +1,30 @@
-// src/config/axios-node.js
-import axios from 'axios';
+// src/config/axiosConfig.js
+const axios = require('axios');
+// 👇 tu config es ESM; para CJS hay que tomar el default
+const config = require('./config').default; // <— ESTE detalle
+
+const baseURL = process.env.API_URL || config.apiUrl; // ej: http://localhost:3003/api
+if (!baseURL || !/^https?:\/\//.test(baseURL)) {
+  throw new Error(`API baseURL inválida: "${baseURL}". Configurá process.env.API_URL o config.apiUrl`);
+}
 
 const api = axios.create({
-  baseURL: process.env.API_URL,      // o la que uses
+  baseURL,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 1000 * 60,                // 1 minuto
+  timeout: 60_000,
 });
 
-// Token en memoria para este proceso (simple y suficiente en la mayoría de casos).
+// Token opcional
 let _authToken = null;
+function setAuthToken(t) { _authToken = t || null; }
+function clearAuthToken() { _authToken = null; }
 
-/**
- * Setea el token Bearer que se adjuntará a TODAS las requests nuevas.
- * Llamalo cuando tengas el ID token del usuario.
- */
-export function setAuthToken(token) {
-  _authToken = token || null;
-}
+api.interceptors.request.use((cfg) => {
+  if (_authToken) {
+    cfg.headers = cfg.headers || {};
+    cfg.headers.Authorization = `Bearer ${_authToken}`;
+  }
+  return cfg;
+});
 
-/** Limpia el token global (opcional) */
-export function clearAuthToken() {
-  _authToken = null;
-}
-
-// Interceptor: si hay token seteado, lo agrega como Authorization.
-api.interceptors.request.use(
-  (config) => {
-    if (_authToken) {
-      config.headers = config.headers || {};
-      config.headers['Authorization'] = `Bearer ${_authToken}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-export default api;
+module.exports = { api, setAuthToken, clearAuthToken };

@@ -4,11 +4,11 @@ const { getFlowByUserId } = require("../flow/flowService");
 const { getEmpAndprofile } = require("../profileService/profileService");
 const { getIdConversacion, createConversacion } = require("./conversacionService");
 
-async function createMessage({ phone, message, type, caption, displayName, senderLid }) { //CAMBIAR EL NOMBRE USERID POR PHONE
+async function createMessage({ phone, message, type, caption, displayName, senderLid }) {
   console.log("Creating message for userId:", phone);
   console.log("LID EN SERVICIO MENSAJES:", senderLid);
 
-  const flowdata = await getFlowByUserId({ phone });       // <- faltaba await
+  const flowdata = await getFlowByUserId({ phone });
   const { empresa, profile } = await getEmpAndprofile(phone);
 
   let id_conversacion = await getIdConversacion({ Lid: senderLid });
