@@ -3,7 +3,7 @@ const enviarMensaje = require('../services/EnviarMensaje/EnviarMensaje');
 const {
   getConversaciones,
   getConversacionById,
-} = require('../services/conversacion/conversacionService');
+} = require('../services/conversacion/conversacionMockService');
 
 module.exports = {
   getConversaciones: asyncHandler(async (req, res) => {
