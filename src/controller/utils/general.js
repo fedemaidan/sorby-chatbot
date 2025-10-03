@@ -10,6 +10,24 @@ const toInt = (v, def) => {
 };
 const isObj = (v) => v && typeof v === "object" && !Array.isArray(v);
 
+const normalizeSort = (s, def = 1) => {
+  const n = toInt(s, def);
+  return n >= 0 ? 1 : -1;
+};
+
+const ensurePosInt = (n, def = 0) => {
+  n = toInt(n, def);
+  return n < 0 ? 0 : n;
+};
+
+const ensureLimit = (n, def = 150, max = 500) => {
+  n = toInt(n, def);
+  if (n <= 0) n = def;
+  if (n > max) n = max;
+  return n;
+};
+
+
 module.exports = {
     asyncHandler,
     normStr,

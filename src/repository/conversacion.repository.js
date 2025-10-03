@@ -72,8 +72,33 @@ async function createConversacion({ Lid, empresa, profile, wPid }) {
   return conversacion;
 }
 
+
+async function getUltmensaje({ id_conversacion, filter = {}, options = {} } = {}) {
+  const col = await getMensajesCol();
+
+  // No permitir que pisen id_conversacion desde filter
+  const { id_conversacion: _ignore, ...safeFilter } = filter || {};
+  const query = id_conversacion
+    ? { id_conversacion: String(id_conversacion), ...safeFilter }
+    : { ...safeFilter };
+
+  const limit = ensureLimit(options.limit ?? 1);        // por default traigo 1 (el último)
+  const offset = ensurePosInt(options.offset ?? 0);
+  const sort = normalizeSort(options.sort ?? -1);       // por default: últimos primero
+
+  // Ordenamos por createdAt (timeline de inserción)
+  const cursor = col.find(query).sort({ createdAt: sort }).skip(offset).limit(limit);
+
+  if (limit === 1) {
+    const doc = await cursor.next();
+    return doc ?? null;
+  }
+  return cursor.toArray();
+}
+
 module.exports = {
   getIdConversacion,
   createConversacion,
+  getUltmensaje
 };
 

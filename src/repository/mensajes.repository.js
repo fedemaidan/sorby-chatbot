@@ -89,8 +89,32 @@ async function getUltmensaje({ id_conversacion } = {}) {
   return doc ?? null;
 }
 
+async function getMensajesByConversacionId({ id_conversacion, filter = {}, options = {} }) {
+  if (!id_conversacion) throw new Error("id_conversacion es requerido");
+  const col = await getCol();
+
+  // Sanitizar para evitar que filter pise el id_conversacion
+  const { id_conversacion: _ignore, ...safeFilter } = filter || {};
+
+  const query = {
+    id_conversacion: String(id_conversacion),
+    ...safeFilter,
+  };
+
+  const limit = options.limit ?? 150;
+  const offset = options.offset ?? 0;
+  const sort = options.sort ?? 1;
+
+  return col
+    .find(query)
+    .sort({ createdAt: sort })
+    .skip(offset)
+    .limit(limit)
+    .toArray();
+}
+
 module.exports = {
   create,
   getMensajesByConversacionId,
-  getUltmensaje,
+  __getColMensajes: getCol,
 };

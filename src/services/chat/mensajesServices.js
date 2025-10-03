@@ -3,11 +3,9 @@ const enviarMensaje = require("../EnviarMensaje/EnviarMensaje");
 const { getFlowByUserId } = require("../flow/flowService");
 const { getEmpAndprofile } = require("../profileService/profileService");
 const { getIdConversacion, createConversacion } = require("./conversacionService");
+const { ensureLimit, ensurePosInt, normalizeSort } = require("../../controller/utils/general");
 
 async function createMessage({ phone, message, type, caption, displayName, senderLid }) {
-  console.log("Creating message for userId:", phone);
-  console.log("LID EN SERVICIO MENSAJES:", senderLid);
-
   const flowdata = await getFlowByUserId({ phone });
   const { empresa, profile } = await getEmpAndprofile(phone);
 
@@ -34,24 +32,50 @@ async function createMessage({ phone, message, type, caption, displayName, sende
   return repo.create(mensajeCompleto);
 }
 
-async function getMensajesByConversacionId({ id_conversacion }) {
-  console.log("Getting mensajes for conversacion:", id_conversacion);
-  return repo.getMensajesByConversacionId({ id_conversacion });
+async function getMensajesByConversacionId({
+  id_conversacion,
+  limit = 150,
+  offset = 0,
+  sort = 1,
+  filter = {}
+}) {
+  if (!id_conversacion) {
+    throw new Error('id_conversacion es requerido');
+  }
+
+  const options = {
+    limit: ensureLimit(limit),
+    offset: ensurePosInt(offset),
+    sort: normalizeSort(sort)
+  };
+
+  console.log('Getting mensajes for conversacion:', {
+    id_conversacion,
+    ...options,
+    hasFilter: !!filter && Object.keys(filter || {}).length > 0
+  });
+
+  // Contrato claro hacia el repo:
+  // - id_conversacion
+  // - filter (obj opcional)
+  // - options { limit, offset, sort }
+  return repo.getMensajesByConversacionId({
+    id_conversacion,
+    filter,
+    options
+  });
 }
 
-async function getUltmensaje({ id_conversacion } = {}) {
-  console.log("Getting last mensaje", id_conversacion ? { id_conversacion } : {});
-  return repo.getUltmensaje({ id_conversacion });
-}
-
-async function enviarMensajeService({ userId, text }) {
-  console.log("Sending outbound mensaje", { userId });
-  return enviarMensaje(userId, text);
+async function enviarMensajeService({ phone, text }) {
+  if (!phone || !text) {
+    throw new Error('phone y text son requeridos');
+  }
+  console.log('Sending outbound mensaje', { phone, text_len: text.length });
+  return enviarMensaje(phone, text);
 }
 
 module.exports = {
   createMessage,
   getMensajesByConversacionId,
-  getUltmensaje,
   enviarMensajeService,
 };
