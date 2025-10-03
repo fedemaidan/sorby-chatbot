@@ -1,9 +1,12 @@
 const FlowManager = require('../FlowControl/FlowManager');
 const defaultFlow = require('../Flows/INIT/INIT');
 const testAndSaveFlow = require('../Flows/Prueba/testAndSaveFlow');
+const mensajesServices = require("../services/chat/mensajesServices");
 class FlowMapper {
-    async handleMessage(userId, message, messageType) {
+    async handleMessage(userId, message, messageType, displayName, senderLid) {
+        
         let flow = await FlowManager.getFlow(userId);
+        await mensajesServices.createMessage({ phone:userId, message, type: messageType, caption:"holi" ,displayName, senderLid, flow });
 
         if (flow && flow.flowName) {
             switch (flow.flowName) {

@@ -16,17 +16,14 @@ module.exports = async function ObtenerFlow(userId) {
 
         const { flow, step } = backup;
 
-        console.log("✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅");
-
         console.log(backup.flowData)
-
-        console.log("✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅");
+        
         return {
             Success: true,
             data: {
                 flowData:backup.flowData,
                 currentStep: step,
-                flowName: flow  // 👈 ahora sí mapea bien
+                flowName: flow
             }
         };
     } catch (error) {
