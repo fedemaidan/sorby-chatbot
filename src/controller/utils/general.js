@@ -40,4 +40,7 @@ module.exports = {
   toInt,
   isObj,
   cleanObj,
+  ensureLimit,
+  ensurePosInt,
+  normalizeSort
 };

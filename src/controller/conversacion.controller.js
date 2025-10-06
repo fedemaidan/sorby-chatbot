@@ -1,9 +1,7 @@
 const { asyncHandler, normStr, cleanObj } = require('./utils/general');
-const enviarMensaje = require('../services/EnviarMensaje/EnviarMensaje');
-const {
-  getConversaciones,
-  getConversacionById,
-} = require('../services/conversacion/conversacionMockService');
+const {getConversaciones} = require('../services/chat/conversacionService');
+const {getConversacionById} = require('../services/chat/conversacionService');
+const {enviarMensajeService} = require('../services/chat/mensajesServices');
 
 module.exports = {
   getConversaciones: asyncHandler(async (req, res) => {
@@ -53,32 +51,11 @@ module.exports = {
 
   sendMessage: asyncHandler(async (req, res) => {
     const { userId, message } = req.body;
-    // if (!userId || !message)
-    //   return res.status(400).json({ error: 'userId y message son requeridos' });
-    // await enviarMensaje(userId, normStr(message));
-    // return res.status(200).json({ message: 'Mensaje enviado correctamente' });
-    return res.status(200).json({
-      message: {
-        userId: '123',
-        conversacionId: '21331222',
-        emisor: 'x',
-        receptor: 'Sorby',
-        message: 'Hola, como estas?',
-        type: 'text',
-        caption: null,
-        fecha: new Date(),
-        empresa: {
-          id: '3144',
-          nombre: 'Empresa 1',
-        },
-        profile: {
-          userId: '23131331',
-          firstName: 'Juan',
-          lastName: 'Perez',
-          email: 'juan.perez@gmail.com',
-          phone: '1234567890',
-        },
-      },
-    });
+
+    console.log('Received sendMessage request', { userId, message_len: message ? message.length : 0 });
+    if (!userId || !message)
+    return res.status(400).json({ error: 'userId y message son requeridos' });
+    await enviarMensajeService({phone:userId, text:normStr(message)});
+    return res.status(200).json({ message: 'Mensaje enviado correctamente' });
   }),
 };

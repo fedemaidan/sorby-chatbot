@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const ctrl = require('../controller/conversacionMock.controller');
+const ctrl = require('../controller/conversacion.controller');
 
 router.get('/', ctrl.getConversaciones);
 router.get('/:id', ctrl.getConversacionById);

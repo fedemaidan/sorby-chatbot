@@ -3,9 +3,8 @@ const enviarMensaje = require("../EnviarMensaje/EnviarMensaje");
 const { getFlowByUserId } = require("../flow/flowService");
 const { getEmpAndprofile } = require("../profileService/profileService");
 const { getIdConversacion, createConversacion } = require("./conversacionService");
-const { ensureLimit, ensurePosInt, normalizeSort } = require("../../controller/utils/general");
 
-async function createMessage({ phone, message, type, caption, displayName, senderLid }) {
+async function createMessage({ phone, message, type, caption, emisor, receptor, senderLid }) {
   const flowdata = await getFlowByUserId({ phone });
   const { empresa, profile } = await getEmpAndprofile(phone);
 
@@ -16,8 +15,8 @@ async function createMessage({ phone, message, type, caption, displayName, sende
 
   const mensajeCompleto = {
     id_conversacion,           
-    emisor: displayName,
-    receptor: "Sorby",
+    emisor: emisor,
+    receptor: receptor,
     message,
     type,
     caption,
@@ -32,38 +31,32 @@ async function createMessage({ phone, message, type, caption, displayName, sende
   return repo.create(mensajeCompleto);
 }
 
-async function getMensajesByConversacionId({
-  id_conversacion,
-  limit = 150,
-  offset = 0,
-  sort = 1,
-  filter = {}
-}) {
+async function createMessageSelf({ phone, message, type, caption, emisor, receptor, senderLid }) {
+  const flowdata = await getFlowByUserId({ phone });
+  const { empresa, profile } = await getEmpAndprofile(phone);
+
+  let id_conversacion = await getIdConversacion({ Lid: senderLid });
+  
   if (!id_conversacion) {
-    throw new Error('id_conversacion es requerido');
+    id_conversacion = await createConversacion({ senderLid, empresa, profile, phone });
   }
 
-  const options = {
-    limit: ensureLimit(limit),
-    offset: ensurePosInt(offset),
-    sort: normalizeSort(sort)
+  const mensajeCompleto = {
+    id_conversacion,           
+    emisor: emisor,
+    receptor: receptor,
+    message,
+    type,
+    caption,
+    fecha: new Date(),
+    empresa,
+    profile,
+    flowdata: flowdata || {},
+    lid: senderLid,
+    phone: phone, 
   };
 
-  console.log('Getting mensajes for conversacion:', {
-    id_conversacion,
-    ...options,
-    hasFilter: !!filter && Object.keys(filter || {}).length > 0
-  });
-
-  // Contrato claro hacia el repo:
-  // - id_conversacion
-  // - filter (obj opcional)
-  // - options { limit, offset, sort }
-  return repo.getMensajesByConversacionId({
-    id_conversacion,
-    filter,
-    options
-  });
+  return repo.create(mensajeCompleto);
 }
 
 async function enviarMensajeService({ phone, text }) {
@@ -76,6 +69,6 @@ async function enviarMensajeService({ phone, text }) {
 
 module.exports = {
   createMessage,
-  getMensajesByConversacionId,
   enviarMensajeService,
+  createMessageSelf
 };

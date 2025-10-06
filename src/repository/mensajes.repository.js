@@ -22,11 +22,6 @@ async function getCol() {
   return colPromise;
 }
 
-/**
- * Crea un mensaje. Vos tenés que pasar id_conversacion.
- * Campos mínimos: { id_conversacion }
- * Otros campos son libres y opcionales (message, type, caption, emisor, receptor, etc).
- */
 async function create(mensaje = {}) {
   if (!mensaje.id_conversacion) {
     throw new Error("id_conversacion es obligatorio para crear un mensaje");
@@ -79,38 +74,18 @@ async function getMensajesByConversacionId({ id_conversacion, limit = 30, sort =
     .toArray();
 }
 
-/**
- * Devuelve el último mensaje global o de una conversación (si se pasa id_conversacion)
- */
-async function getUltmensaje({ id_conversacion } = {}) {
-  const col = await getCol();
-  const query = id_conversacion ? { id_conversacion: String(id_conversacion) } : {};
-  const doc = await col.find(query).sort({ createdAt: -1 }).limit(1).next();
-  return doc ?? null;
-}
-
 async function getMensajesByConversacionId({ id_conversacion, filter = {}, options = {} }) {
   if (!id_conversacion) throw new Error("id_conversacion es requerido");
   const col = await getCol();
 
-  // Sanitizar para evitar que filter pise el id_conversacion
   const { id_conversacion: _ignore, ...safeFilter } = filter || {};
+  const query = { id_conversacion: String(id_conversacion), ...safeFilter };
 
-  const query = {
-    id_conversacion: String(id_conversacion),
-    ...safeFilter,
-  };
+  const limit = Number.isFinite(+options.limit) ? +options.limit : 150;
+  const offset = Number.isFinite(+options.offset) ? +options.offset : 0;
+  const sort = (+options.sort || 1) >= 0 ? 1 : -1;
 
-  const limit = options.limit ?? 150;
-  const offset = options.offset ?? 0;
-  const sort = options.sort ?? 1;
-
-  return col
-    .find(query)
-    .sort({ createdAt: sort })
-    .skip(offset)
-    .limit(limit)
-    .toArray();
+  return col.find(query).sort({ createdAt: sort }).skip(offset).limit(limit).toArray();
 }
 
 module.exports = {

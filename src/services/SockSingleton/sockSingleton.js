@@ -1,6 +1,8 @@
 const GetMessageType = require("../../Utiles/Mensajes/GetType");
 const messageResponder = require("../../Utiles/Mensajes/messageResponder");
 const autoReporter = require("baileys-status-reporter");
+const { createMessage } = require("../chat/mensajesServices");
+const guardarMensajeSorby = require("../chat/guardarMensajeSorby");
 class SockSingleton {
     constructor() {
         if (!SockSingleton.instance) {
@@ -21,18 +23,12 @@ class SockSingleton {
             if (message.type === 'notify') {
                 const msg = message.messages[0];
 
-                if (msg.key.fromMe) {
-                    if (
-                        msg.message?.conversation === 'TODO_OK' || 
-                        msg.message?.extendedTextMessage?.text === 'TODO_OK'
-                    ) {
-                        //console.log("🟢 Mensaje TODO_OK recibido, marcando ping como OK.");
-                        //autoReporter.marcarPingOK();
+                if (msg.key.fromMe) 
+                    {
+                        guardarMensajeSorby({msg:msg})
+                        return;
                     }
-                     return;
-                    }
-
-                if (!msg.message || msg.key.fromMe) return;
+                if (!msg.message) return;
 
                 const sender = msg.key.remoteJid;
 
