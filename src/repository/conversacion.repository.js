@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-const { v4: uuidv4 } = require('uuid');
 function now() { return new Date(); }
 
 let colConversacionesPromise = null;
@@ -10,8 +9,7 @@ async function getConversacionesCol() {
   if (!colConversacionesPromise) {
     colConversacionesPromise = (async () => {
       const col = mongoose.connection.db.collection("conversaciones");
-      // Índices
-      await col.createIndex({ id: 1 }, { unique: true, name: "uniq_conversacion_id" });
+
       await col.createIndex({ lid: 1 }, { unique: true, name: "uniq_lid" });
       await col.createIndex({ wPid: 1 }, { name: "by_wPid" });
       await col.createIndex({ updatedAt: -1 }, { name: "by_updatedAt_desc" });
@@ -29,7 +27,6 @@ async function getMensajesCol() {
   if (!colMensajesPromise) {
     colMensajesPromise = (async () => {
       const col = mongoose.connection.db.collection("mensajes");
-      // Índices clave para el lookup del último mensaje:
       await col.createIndex({ id_conversacion: 1, createdAt: -1 }, { name: "by_conv_created_desc" });
       return col;
     })();
@@ -37,17 +34,27 @@ async function getMensajesCol() {
   return colMensajesPromise;
 }
 
-/** ✅ Devuelve el id de la conversación asociado a un Lid (match exacto) */
-async function getIdConversacion({ Lid, remoteJid }) {
-  if (typeof Lid === "undefined" || Lid === null || Lid === "") {
-    throw new Error("Lid es requerido");
+/** 🔎 Obtener _id por Lid (match exacto) */
+async function getIdConversacionByLid({ Lid }) {
+  if (typeof Lid === 'undefined' || Lid === null || String(Lid) === '') {
+    throw new Error('Lid es requerido');
   }
   const col = await getConversacionesCol();
-  const doc = await col.findOne({ lid: String(Lid) }, { projection: { id: 1 } });
-  return doc ? doc.id : null;
+  const doc = await col.findOne({ lid: String(Lid) }, { projection: { _id: 1 } });
+  return doc ? doc._id : null; // <- devolvemos _id (ObjectId)
 }
 
-/** ✅ Crea una conversación nueva (1 conv por Lid) */
+/** 🔎 Obtener _id por wPid (remoteJid tal cual) */
+async function getIdConversacionByWpid({ wPid }) {
+  if (typeof wPid === 'undefined' || wPid === null || String(wPid) === '') {
+    throw new Error('wPid es requerido');
+  }
+  const col = await getConversacionesCol();
+  const doc = await col.findOne({ wPid: String(wPid) }, { projection: { _id: 1 } });
+  return doc ? doc._id : null; // <- devolvemos _id (ObjectId)
+}
+
+/** ✅ Crear conversación nueva (sin uuid "id"; usamos _id de Mongo) */
 async function createConversacion({ Lid, empresa, profile, wPid }) {
   if (typeof Lid === "undefined" || Lid === null || Lid === "") {
     throw new Error("Lid es requerido");
@@ -56,24 +63,21 @@ async function createConversacion({ Lid, empresa, profile, wPid }) {
   const t = now();
 
   const conversacion = {
-    id: uuidv4(),
     lid: String(Lid),
-    wPid: wPid,
+    wPid: wPid == null ? null : String(wPid),
     empresa: empresa ?? null,
     profile: profile ?? null,
     createdAt: t,
     updatedAt: t,
   };
 
-  await col.insertOne(conversacion);
-  return conversacion;
+  const { insertedId } = await col.insertOne(conversacion);
+  return { _id: insertedId, ...conversacion }; // <- devolvemos _id real
 }
+
 /**
  * Lista conversaciones + (opcional) su último mensaje
- * @param {Object} params
- * @param {Object} [params.filter] Filtros sobre conversaciones (lid, wPid, empresa, etc.)
- * @param {Object} [params.options] { limit, offset, sort } sort aplica a updatedAt
- * @param {boolean} [params.withUltimoMensaje=true]
+ * Une _id(ObjectId) con mensajes.id_conversacion(string)
  */
 async function listConversaciones({ filter = {}, options = {}, withUltimoMensaje = true } = {}) {
   const col = await getConversacionesCol();
@@ -82,13 +86,11 @@ async function listConversaciones({ filter = {}, options = {}, withUltimoMensaje
   const offset = Math.max(0, Number(options.offset ?? 0));
   const sortDir = Number(options.sort ?? -1) === 1 ? 1 : -1;
 
-  // Limpieza de filtro básica
   const query = {};
-  if (filter.lid) query.lid = String(filter.lid);
+  if (filter.lid)  query.lid  = String(filter.lid);
   if (filter.wPid) query.wPid = String(filter.wPid);
   if (typeof filter.empresa !== "undefined") query.empresa = filter.empresa;
 
-  // Pipeline base
   const pipeline = [
     { $match: query },
     { $sort: { updatedAt: sortDir } },
@@ -101,7 +103,7 @@ async function listConversaciones({ filter = {}, options = {}, withUltimoMensaje
       {
         $lookup: {
           from: "mensajes",
-          let: { convId: "$id" },
+          let: { convId: { $toString: "$_id" } },        // <- convertimos _id → string
           pipeline: [
             { $match: { $expr: { $eq: ["$id_conversacion", "$$convId"] } } },
             { $sort: { createdAt: -1 } },
@@ -119,7 +121,9 @@ async function listConversaciones({ filter = {}, options = {}, withUltimoMensaje
 
 module.exports = {
   listConversaciones,
-  getMensajesCol, 
-  getIdConversacion,
-  createConversacion
+  getMensajesCol,
+  getIdConversacionByLid,
+  getIdConversacionByWpid,
+  createConversacion,
+  getConversacionesCol,
 };
