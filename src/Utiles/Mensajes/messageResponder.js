@@ -1,6 +1,6 @@
 const FlowMapper = require('../../FlowControl/FlowMapper');
 const FlowManager = require('../../FlowControl/FlowManager');
-const { saveImageToStorage } = require('../Firebase/storageHandler');
+const { saveImageToStorage, saveAudioToStorage } = require('../Firebase/storageHandler');
 const transcribeAudio = require('../Firebase/transcribeAudio');
 const downloadMedia = require('../Firebase/DownloadMedia');
 
@@ -31,7 +31,7 @@ const messageResponder = async (messageType, msg, sender, displayName, senderLid
 
                 const urls = await saveImageToStorage(ImageMessage, sender, "image");
 
-                await FlowMapper.handleMessage(sender, urls, null, 'image',displayName, senderLid);
+                await FlowMapper.handleMessage(sender, urls.imagenFirebase, messageType ,displayName, senderLid);
             } catch (error) {
                 console.error("❌ Error al procesar la imagen:", error);
             }
@@ -57,10 +57,11 @@ const messageResponder = async (messageType, msg, sender, displayName, senderLid
                 }
 
                 const filePath = await downloadMedia(msg, 'audio');
+                const UrlaudioStorage = await saveAudioToStorage(filePath, sender, "document");
                 const transcripcion = await transcribeAudio(filePath);
 
                 console.log("📜 Transcripción de audio:", transcripcion);
-                await FlowMapper.handleMessage(sender, transcripcion, null, messageType, displayName, senderLid);
+                await FlowMapper.handleMessage(sender, UrlaudioStorage, messageType, displayName, senderLid, transcripcion );
             } catch (error) {
                 console.error("❌ Error al procesar el audio:", error);
             }
@@ -90,7 +91,7 @@ const messageResponder = async (messageType, msg, sender, displayName, senderLid
                     return;
                 }
 
-                await FlowMapper.handleMessage(sender, transcripcion, null, "document-caption", displayName, senderLid);
+                await FlowMapper.handleMessage(sender, transcripcion.imagenFirebase,"document-caption", displayName, senderLid);
             } catch (error) {
                 console.error("❌ Error al procesar el documento:", error);
             }
