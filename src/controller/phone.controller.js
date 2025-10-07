@@ -8,7 +8,7 @@ module.exports = {
 
     const lid = typeof Lid === 'string' ? normStr(Lid).trim() : Lid;
 
-    const data = await phoneService.obtenerphone(lid);
+    const data = await phoneService.obtenerphone({Lid:lid});
     return res.status(200).json(data);
   }),
 };

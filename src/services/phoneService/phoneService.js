@@ -1,8 +1,8 @@
-const repo = require("../../repository/flow.repository");
+const repo = require("../../repository/conversacion.repository");
 
 async function obtenerphone({ Lid }) {
 console.log("Getting phone:", Lid);
-  return repo.getFlowByUserId({ Lid });
+  return repo.obtenerphone({ Lid });
 }
 
 module.exports = {

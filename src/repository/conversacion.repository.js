@@ -34,6 +34,18 @@ async function getMensajesCol() {
   return colMensajesPromise;
 }
 
+async function obtenerphone({ Lid }) {
+  if (typeof Lid === 'undefined' || Lid === null || String(Lid) === '') {
+    throw new Error('Lid es requerido');
+  }
+  const col = await getConversacionesCol();
+  const doc = await col.findOne(
+    { lid: String(Lid) },
+    { projection: { wPid: 1, _id: 0 } } // ← pedimos wPid (no _id)
+  );
+  return doc?.wPid ?? null; // ← devolvemos el wPid (o null si no existe)
+}
+
 /** 🔎 Obtener _id por Lid (match exacto) */
 async function getIdConversacionByLid({ Lid }) {
   if (typeof Lid === 'undefined' || Lid === null || String(Lid) === '') {
@@ -126,4 +138,5 @@ module.exports = {
   getIdConversacionByWpid,
   createConversacion,
   getConversacionesCol,
+  obtenerphone
 };
