@@ -1,26 +1,28 @@
 const FlowMapper = require('../../FlowControl/FlowMapper');
 const FlowManager = require('../../FlowControl/FlowManager');
-const { saveImageToStorage } = require('../Firebase/storageHandler');
+const { saveImageToStorage, saveAudioToStorage } = require('../Firebase/storageHandler');
 const transcribeAudio = require('../Firebase/transcribeAudio');
 const downloadMedia = require('../Firebase/DownloadMedia');
-const enviarMensaje = require('../../services/EnviarMensaje/EnviarMensaje');
 
-const messageResponder = async (messageType, msg, sender) => {
+
+const messageResponder = async (messageType, msg, sender, displayName, senderLid) => {
     
+    console.log("senderLid en messageResponder: ", senderLid);
+
+
     switch (messageType) {
         case 'text':
         case 'text_extended': {
             const text = msg.message.conversation || msg.message.extendedTextMessage?.text;
-            await FlowMapper.handleMessage(sender, text, messageType);
+            await FlowMapper.handleMessage(sender, text, messageType, displayName, senderLid);
             break;
         }
 
         case 'image': {
             try {
-                await enviarMensaje(sender, "⏳ Analizando imagen... ⏳");
 
                 if (!msg.message?.imageMessage) {
-                    await enviarMensaje(sender, "❌ No se encontró una imagen en el mensaje.");
+                    console.log("❌ msg.message.imageMessage está vacío");
                     return;
                 }
 
@@ -29,10 +31,9 @@ const messageResponder = async (messageType, msg, sender) => {
 
                 const urls = await saveImageToStorage(ImageMessage, sender, "image");
 
-                await FlowMapper.handleMessage(sender, urls, null, 'image');
+                await FlowMapper.handleMessage(sender, urls.imagenFirebase, messageType ,displayName, senderLid);
             } catch (error) {
                 console.error("❌ Error al procesar la imagen:", error);
-                await enviarMensaje(sender, "❌ Hubo un error al procesar tu imagen.");
             }
             break;
         }
@@ -40,30 +41,29 @@ const messageResponder = async (messageType, msg, sender) => {
         case 'video': {
             const filePath = await downloadMedia(msg.message, 'video');
             if (filePath) {
-                await enviarMensaje(sender, `🎥 Video recibido y guardado en:\n${filePath}`);
+                console.log("📁 Video descargado en:", filePath);
             } else {
-                await enviarMensaje(sender, '❌ No pude guardar el video. Intenta nuevamente.');
+                console.error("❌ Error al descargar el video.");
             }
             break;
         }
 
         case 'audio': {
             try {
-                await enviarMensaje(sender, "⏳ Escuchando tu mensaje... ⏳");
 
                 if (!msg.message?.audioMessage) {
-                    await enviarMensaje(sender, "❌ No se encontró un audio en el mensaje.");
+                    console.error("❌ msg.message.audioMessage está vacío");
                     return;
                 }
 
                 const filePath = await downloadMedia(msg, 'audio');
+                const UrlaudioStorage = await saveAudioToStorage(filePath, sender, "document");
                 const transcripcion = await transcribeAudio(filePath);
 
                 console.log("📜 Transcripción de audio:", transcripcion);
-                await FlowMapper.handleMessage(sender, transcripcion, null, messageType);
+                await FlowMapper.handleMessage(sender, UrlaudioStorage, messageType, displayName, senderLid, transcripcion );
             } catch (error) {
                 console.error("❌ Error al procesar el audio:", error);
-                await enviarMensaje(sender, "❌ Hubo un error al procesar tu audio.");
             }
             break;
         }
@@ -71,11 +71,9 @@ const messageResponder = async (messageType, msg, sender) => {
         case 'document':
         case 'document-caption': {
             try {
-                await enviarMensaje(sender, "⏳ Analizando documento... ⏳");
 
                 if (!msg?.message) {
                     console.error("❌ msg.message está vacío");
-                    await enviarMensaje(sender, "❌ Hubo un problema al procesar tu documento.");
                     return;
                 }
 
@@ -83,26 +81,25 @@ const messageResponder = async (messageType, msg, sender) => {
                     msg.message.documentWithCaptionMessage?.message?.documentMessage;
 
                 if (!docMessage) {
-                    await enviarMensaje(sender, "❌ No se encontró un documento adjunto.");
+                    console.error("❌ docMessage está vacío");
                     return;
                 }
 
                 const transcripcion = await saveImageToStorage(docMessage, sender, "document");
                 if (!transcripcion) {
-                    await enviarMensaje(sender, "❌ No se pudo procesar tu documento.");
+                    console.error("❌ La transcripción del documento falló.");
                     return;
                 }
 
-                await FlowMapper.handleMessage(sender, transcripcion, null, "document-caption");
+                await FlowMapper.handleMessage(sender, transcripcion.imagenFirebase,"document-caption", displayName, senderLid);
             } catch (error) {
                 console.error("❌ Error al procesar el documento:", error);
-                await enviarMensaje(sender, "❌ Hubo un error al procesar tu documento.");
             }
             break;
         }
 
         default: {
-            await enviarMensaje(sender, `❓ No entiendo este tipo de mensaje (${messageType}). Por favor, envíame texto, imagen o documento válido.`);
+            console.log(`❌ Tipo de mensaje no soportado: ${messageType}`);
         }
     }
 };

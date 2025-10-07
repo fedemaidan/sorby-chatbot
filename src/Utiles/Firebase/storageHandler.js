@@ -3,7 +3,7 @@ const path = require('path');
 const os = require('os');
 const { downloadMediaMessage } = require('@whiskeysockets/baileys');
 const { convertPdfToJpeg } = require('../Firebase/convertPdfToJpeg');
-const { admin } = require('../Firebase/firebaseUtils'); // Configuración de Firebase Admin
+const { admin } = require('../Firebase/firebaseUtils');
 
 async function saveImageToStorage(message, senderPhone, messageType) {
     try {
@@ -93,8 +93,6 @@ async function saveImageToStorage(message, senderPhone, messageType) {
     }
 }
 
-module.exports = { saveImageToStorage, GuardarArchivoFire };
-
 async function saveFileToStorage(buffer, fileName, filePath, mimeType) {
     const bucket = admin.storage().bucket();
     try {
@@ -143,3 +141,58 @@ async function GuardarArchivoFire(absolutePath, userId, useRandomName = false) {
         return { success: false, error: error.message };
     }
 }
+
+async function saveAudioToStorage(absolutePath, userId, useRandomName = false) {
+  try {
+    if (!absolutePath || !userId) {
+      throw new Error('absolutePath y userId son requeridos');
+    }
+
+    // leer archivo local
+    const buffer = fs.readFileSync(absolutePath);
+
+    // nombre y extensión
+    const parsed = path.parse(absolutePath);
+    const baseName = useRandomName
+      ? `audio-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+      : (parsed.name || `audio-${Date.now()}`);
+    let ext = (parsed.ext || '').toLowerCase();
+
+    // default si no viene extensión
+    if (!ext) ext = '.ogg';
+
+    // mimetype por extensión (fallback octet-stream)
+    const mimeByExt = {
+      '.ogg': 'audio/ogg',
+      '.opus': 'audio/ogg',
+      '.mp3': 'audio/mpeg',
+      '.wav': 'audio/wav',
+      '.m4a': 'audio/mp4',
+      '.aac': 'audio/aac',
+      '.amr': 'audio/amr',
+    };
+    const mimeType = mimeByExt[ext] || 'application/octet-stream';
+
+    const fileName = `${baseName}${ext}`;
+    const date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const filePath = `metal/audios/${userId}/${date}/${fileName}`;
+
+    // subir a Firebase Storage
+    const bucket = admin.storage().bucket();
+    const file = bucket.file(filePath);
+    await file.save(buffer, { metadata: { contentType: mimeType } });
+
+    // URL firmado (larga duración)
+    const [signedUrl] = await file.getSignedUrl({
+      action: 'read',
+      expires: '03-09-2491',
+    });
+
+    return signedUrl; // ← devolvemos SOLO la URL web
+  } catch (error) {
+    console.error('🚨 Error al guardar audio en Firebase:', error.message);
+    throw error;
+  }
+}
+
+module.exports = { saveImageToStorage, GuardarArchivoFire, saveAudioToStorage };
