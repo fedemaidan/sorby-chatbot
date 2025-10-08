@@ -10,7 +10,7 @@ async function getConversacionesCol() {
     colConversacionesPromise = (async () => {
       const col = mongoose.connection.db.collection("conversaciones");
 
-      await col.createIndex({ lid: 1 }, { unique: true, name: "uniq_lid" });
+      await col.createIndex({ lid: 1 }, { name: "uniq_lid" });
       await col.createIndex({ wPid: 1 }, { name: "by_wPid" });
       await col.createIndex({ updatedAt: -1 }, { name: "by_updatedAt_desc" });
       return col;
