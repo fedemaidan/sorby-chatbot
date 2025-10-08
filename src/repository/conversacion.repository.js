@@ -49,11 +49,11 @@ async function obtenerphone({ Lid }) {
 /** 🔎 Obtener _id por Lid (match exacto) */
 async function getIdConversacionByLid({ Lid }) {
   if (typeof Lid === 'undefined' || Lid === null || String(Lid) === '') {
-    throw new Error('Lid es requerido');
+    throw new Error('Lid es requerido');       // ← antes estaba vacío
   }
   const col = await getConversacionesCol();
-  const doc = await col.findOne({ lid: String(Lid) }, { projection: { _id: 1 } });
-  return doc ? doc._id : null; // <- devolvemos _id (ObjectId)
+  const doc = await col.findOne({ lid: String(Lid) });
+  return doc || null;                           // ← doc completo
 }
 
 /** 🔎 Obtener _id por wPid (remoteJid tal cual) */
@@ -62,8 +62,8 @@ async function getIdConversacionByWpid({ wPid }) {
     throw new Error('wPid es requerido');
   }
   const col = await getConversacionesCol();
-  const doc = await col.findOne({ wPid: String(wPid) }, { projection: { _id: 1 } });
-  return doc ? doc._id : null; // <- devolvemos _id (ObjectId)
+  const doc = await col.findOne({ wPid: String(wPid) });
+  return doc || null;                           // ← doc completo
 }
 
 /** ✅ Crear conversación nueva (sin uuid "id"; usamos _id de Mongo) */
@@ -83,6 +83,24 @@ async function createConversacion({ Lid, empresa, profile, wPid }) {
 
   const { insertedId } = await col.insertOne(conversacion);
   return { _id: insertedId, ...conversacion }; // <- devolvemos _id real
+}
+
+async function setLidById({ id, lid }) {
+  if (!id)  throw new Error("id es requerido");
+  if (!lid) throw new Error("lid es requerido");
+  const col = await getConversacionesCol();
+  const _id = typeof id === 'string' ? new mongoose.Types.ObjectId(id) : id;
+  await col.updateOne({ _id }, { $set: { lid: String(lid), updatedAt: new Date() } });
+  return true;
+}
+
+async function setWpidById({ id, wPid }) {
+  if (!id)   throw new Error("id es requerido");
+  if (!wPid) throw new Error("wPid es requerido");
+  const col = await getConversacionesCol();
+  const _id = typeof id === 'string' ? new mongoose.Types.ObjectId(id) : id;
+  await col.updateOne({ _id }, { $set: { wPid: String(wPid), updatedAt: new Date() } });
+  return true;
 }
 
 /**
@@ -136,5 +154,7 @@ module.exports = {
   getIdConversacionByWpid,
   createConversacion,
   getConversacionesCol,
-  obtenerphone
+  obtenerphone,
+  setLidById,
+  setWpidById
 };
