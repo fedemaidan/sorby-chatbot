@@ -1,6 +1,5 @@
 const { asyncHandler, normStr, cleanObj } = require('./utils/general');
-const {getConversaciones} = require('../services/chat/conversacionService');
-const {getConversacionById} = require('../services/chat/conversacionService');
+const {getConversaciones, getConversacionById, getUltimosMensajesService} = require('../services/chat/conversacionService');
 const {enviarMensajeService} = require('../services/chat/mensajesServices');
 
 module.exports = {
@@ -57,5 +56,18 @@ module.exports = {
     return res.status(400).json({ error: 'userId y message son requeridos' });
     await enviarMensajeService({phone:userId, text:normStr(message)});
     return res.status(200).json({ message: 'Mensaje enviado correctamente' });
+  }),
+
+  getUltimosMensajes: asyncHandler(async (req, res) => {
+    const { id, phone, lid, limit, sort } = req.query;
+    console.log('getUltimosMensajes called with', { id, phone, lid, limit, sort });
+    const result = await getUltimosMensajesService({
+      id,
+      phone,
+      lid,
+      limit,
+      sort
+    });
+    return res.status(200).json(result);
   }),
 };
