@@ -6,8 +6,7 @@ class FlowMapper {
     async handleMessage(userId, message, messageType, displayName, senderLid, caption = "") {
         
         let flow = await FlowManager.getFlow(userId);
-        console.log("Current flow for user", userId, "is", flow);
-        await mensajesServices.createMessage({ phone:userId, message, type: messageType, caption:caption , emisor:displayName, receptor:"sorby", senderLid, flow });
+        await mensajesServices.createMessage({ phone:userId, message, type: messageType, caption:caption , emisor:displayName, receptor:"sorby", senderLid });
 
         if (flow && flow.flowName) {
             switch (flow.flowName) {

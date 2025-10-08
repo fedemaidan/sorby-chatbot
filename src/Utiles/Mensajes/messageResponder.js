@@ -7,7 +7,7 @@ const downloadMedia = require('../Firebase/DownloadMedia');
 
 const messageResponder = async (messageType, msg, sender, displayName, senderLid) => {
     
-    console.log("senderLid en messageResponder: ", senderLid);
+    console.log("guardar mensaje del usuario!!! msg:", msg);
 
 
     switch (messageType) {

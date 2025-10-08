@@ -10,18 +10,15 @@ module.exports = async function guardarMensajeSorby({ msg }) {
   const phone   = msg.key.remoteJid || '';
   const displayName = msg.pushName || 'Usuario';
   const senderLid   = msg.key?.senderLid || null;
-  const receptorLid = phone;
 
   const { message, caption, type } = extractContent(msg);
 
-  const emisor   = isFromMe ? 'sorby'     : displayName;
-  const receptor = isFromMe ? displayName : 'sorby';
-  const lidParaPersistir = isFromMe ? receptorLid : senderLid; // fromMe ⇒ usar LID del RECEPTOR
+  const emisor   = displayName;
+  const receptor = isFromMe ? phone : 'sorby';
 
 
    let flow = await FlowManager.getFlow(phone);
-  // Respeta el contrato de createMessage:
-  // phone, message, type, caption:"", emisor, receptor, senderLid, flow
+
   return createMessageSelf({
     phone,
     message,
@@ -29,7 +26,7 @@ module.exports = async function guardarMensajeSorby({ msg }) {
     caption: caption || '',
     emisor,
     receptor,
-    senderLid: lidParaPersistir,
+    senderLid: null,
     flow
   });
 };

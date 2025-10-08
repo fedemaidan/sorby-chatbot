@@ -68,9 +68,7 @@ async function getIdConversacionByWpid({ wPid }) {
 
 /** ✅ Crear conversación nueva (sin uuid "id"; usamos _id de Mongo) */
 async function createConversacion({ Lid, empresa, profile, wPid }) {
-  if (typeof Lid === "undefined" || Lid === null || Lid === "") {
-    throw new Error("Lid es requerido");
-  }
+
   const col = await getConversacionesCol();
   const t = now();
 
