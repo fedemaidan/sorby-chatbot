@@ -3,5 +3,6 @@ src/services/firebase/firebaseServiceAccount.js
 auth_info/
 node_modules
 .env
+.env.prod
 git 
 .vs/

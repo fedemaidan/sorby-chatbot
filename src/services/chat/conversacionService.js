@@ -32,8 +32,8 @@ async function getIdConversacionByWpid({ wPid }) {
   return _id ? String(_id) : null;
 }
 
-async function createConversacion({ senderLid, empresa, profile, phone }) {  
-  const conv = await repoc.createConversacion({ Lid: senderLid, wPid: phone, empresa, profile });
+async function createConversacion({ senderLid, empresa, profile, phone, emisor = "Usuario" }) {  
+  const conv = await repoc.createConversacion({ Lid: senderLid, wPid: phone, empresa, profile, emisor });
   const _id = conv?._id ?? conv?.id;
   return _id ? String(_id) : null;
 }
