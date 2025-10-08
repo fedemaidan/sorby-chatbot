@@ -2,7 +2,7 @@ const repo = require("../../repository/mensajes.repository");
 const enviarMensaje = require("../EnviarMensaje/EnviarMensaje");
 const { getFlowByUserId } = require("../flow/flowService");
 const { getEmpAndprofile } = require("../profileService/profileService");
-const { createConversacion, getIdConversacionByLid, getIdConversacionByWpid } = require("./conversacionService");
+const { createConversacion, getIdConversacionByLid, getIdConversacionByWpid, getOrCreateConversacion } = require("./conversacionService");
 
 async function createMessage({ phone, message, type, caption, emisor, receptor, senderLid }) {
   // 1) ordenar IDs: cuál es @lid y cuál es @s.whatsapp.net
@@ -12,26 +12,7 @@ async function createMessage({ phone, message, type, caption, emisor, receptor, 
   const flowdata = await getFlowByUserId({ phone });
   const { empresa, profile } = await getEmpAndprofile(phone);
 
-  let id_conversacion = null;
-  if (wPidFinal) {
-    id_conversacion = await getIdConversacionByWpid({ wPid: wPidFinal });
-  }
-  if (!id_conversacion && lidFinal) {
-    id_conversacion = await getIdConversacionByLid({ Lid: lidFinal });
-  }
-
-  // 4) si no existe, crearla usando los valores ya clasificados
-  if (!id_conversacion) {
-    id_conversacion = await createConversacion({
-      senderLid: lidFinal,     // <- el @lid correcto
-      empresa,
-      profile,
-      phone: wPidFinal,        // <- el @s.whatsapp.net correcto
-      emisor
-    });
-  }
-
-  id_conversacion = String(id_conversacion); // asegurar string para mensajes
+  let id_conversacion = await getOrCreateConversacion({ wPidFinal, lidFinal, emisor, empresa, profile });
 
   // 5) persistir el mensaje con los IDs correctos
   const mensajeCompleto = {
@@ -63,26 +44,7 @@ async function createMessageSelf({ phone, message, type, caption, emisor, recept
   const { empresa, profile } = await getEmpAndprofile(phone);
 
   // 3) Buscar conversación por wPid y, si no existe, por lid
-  let id_conversacion = null;
-  if (wPidFinal) {
-    id_conversacion = await getIdConversacionByWpid({ wPid: wPidFinal });
-  }
-  if (!id_conversacion && lidFinal) {
-    id_conversacion = await getIdConversacionByLid({ Lid: lidFinal });
-  }
-
-  // 4) Crear si no existe, usando los valores ya clasificados
-  if (!id_conversacion) {
-    id_conversacion = await createConversacion({
-      senderLid: lidFinal,   
-      empresa,
-      profile,
-      phone: wPidFinal, 
-      emisor
-    });
-  }
-
-  id_conversacion = String(id_conversacion);
+  let id_conversacion = await getOrCreateConversacion({ wPidFinal, lidFinal, emisor, empresa, profile });
 
   // 5) Persistir con los IDs correctos
   const mensajeCompleto = {
@@ -120,15 +82,12 @@ function parametrizar(lidInput, wPidInput) {
   if (a) {
     if (isLid(a))      lid  = a;
     else if (isWpid(a)) wPid = a;
-    else                lid  = a;          // ambiguo: respetamos el origen del param
   }
 
   // clasificar segundo parámetro (supuesto wPid)
   if (b) {
     if (isWpid(b))      wPid = wPid ?? b;
     else if (isLid(b))  lid  = lid  ?? b;
-    else if (!wPid)     wPid = b;          // ambiguo: respetamos el origen del param
-    else if (!lid)      lid  = b;
   }
 
   return { wPid, lid };

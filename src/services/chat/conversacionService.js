@@ -80,10 +80,36 @@ async function getConversaciones({
   });
 }
 
+
+async function getOrCreateConversacion({ wPidFinal, lidFinal, emisor, empresa, profile }) 
+{
+let id_conversacion = null;
+if (wPidFinal) {
+    id_conversacion = await getIdConversacionByWpid({ wPid: wPidFinal });
+  }
+  if (!id_conversacion && lidFinal) {
+    id_conversacion = await getIdConversacionByLid({ Lid: lidFinal });
+  }
+
+  // 4) si no existe, crearla usando los valores ya clasificados
+  if (!id_conversacion) {
+    id_conversacion = await createConversacion({
+      senderLid: lidFinal,
+      empresa,
+      profile,
+      phone: wPidFinal,
+      emisor
+    });
+  }
+
+  return String(id_conversacion);
+}
+
 module.exports = {
   getIdConversacionByLid,
   getIdConversacionByWpid,
   getConversaciones,
   createConversacion,
+  getOrCreateConversacion,
   getConversacionById
 };
