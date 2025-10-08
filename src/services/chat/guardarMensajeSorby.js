@@ -13,8 +13,8 @@ module.exports = async function guardarMensajeSorby({ msg }) {
 
   const { message, caption, type } = extractContent(msg);
 
-  const emisor   = isFromMe ? 'sorby'     : displayName;
-  const receptor = isFromMe ? displayName : 'sorby';
+  const emisor   = displayName;
+  const receptor = isFromMe ? phone : 'sorby';
 
 
    let flow = await FlowManager.getFlow(phone);
