@@ -107,13 +107,14 @@ async function setWpidById({ id, wPid }) {
  * Lista conversaciones + (opcional) su último mensaje
  * Une _id(ObjectId) con mensajes.id_conversacion(string)
  */
+
 async function listConversaciones({ filter = {}, options = {}, withUltimoMensaje = true } = {}) {
   const col = await getConversacionesCol();
 
   const limit  = Math.max(1, Math.min(Number(options.limit ?? 150), 500));
   const offset = Math.max(0, Number(options.offset ?? 0));
 
-  // aceptar number | string | object ({updatedAt:1} / {lastMsgUpdatedAt:1})
+  // aceptar number | string | object ({lastMsgUpdatedAt:1} / {updatedAt:1})
   let sortDir = -1;
   const s = options.sort;
   if (typeof s === 'number') sortDir = s === 1 ? 1 : -1;
@@ -123,53 +124,47 @@ async function listConversaciones({ filter = {}, options = {}, withUltimoMensaje
     sortDir = v === 1 ? 1 : -1;
   }
 
+  // filtros
   const query = {};
   if (filter.lid)  query.lid  = String(filter.lid);
   if (filter.wPid) query.wPid = String(filter.wPid);
   if (typeof filter.empresa !== "undefined") query.empresa = filter.empresa;
 
-  const pipeline = [
-    { $match: query },
+  // proyección (ocultar ultMensaje si no lo querés devolver)
+  const projection = withUltimoMensaje ? undefined : { ultMensaje: 0, ultimoMensaje: 0 };
 
-    // Traer SOLO el último mensaje por updatedAt
-    {
-      $lookup: {
-        from: "mensajes",
-        let: { convId: { $toString: "$_id" } },
-        pipeline: [
-          { $match: { $expr: { $eq: ["$id_conversacion", "$$convId"] } } },
-          { $sort: { updatedAt: -1 } },
-          { $limit: 1 }
-        ],
-        as: "ultimoMensaje"
-      }
-    },
+  // sort por actividad: lastMsgUpdatedAt (fallback a updatedAt)
+  const sort = { lastMsgUpdatedAt: sortDir, updatedAt: sortDir, _id: -1 };
 
-    // ⚠️ Aplanar para que no quede array
-    { $unwind: { path: "$ultimoMensaje", preserveNullAndEmptyArrays: true } },
-
-    // Campo de orden: updatedAt del último mensaje, o updatedAt de la conversación
-    {
-      $addFields: {
-        lastMsgUpdatedAt: { $ifNull: ["$ultimoMensaje.updatedAt", "$updatedAt"] }
-      }
-    },
-
-    // Ordenar por actividad real del chat
-    { $sort: { lastMsgUpdatedAt: sortDir } },
-
-    // Paginación
-    { $skip: offset },
-    { $limit: limit },
-  ];
-
-  // Si no querés devolver el último mensaje pero sí usarlo para ordenar
-  if (!withUltimoMensaje) {
-    pipeline.push({ $project: { ultimoMensaje: 0 } });
-  }
-
-  return col.aggregate(pipeline).toArray();
+  return col
+    .find(query, { projection })
+    .sort(sort)
+    .skip(offset)
+    .limit(limit)
+    .toArray();
 }
+
+
+
+async function guardarUltimoMensaje({ id, mensaje }) {
+  if (!id) throw new Error("id es requerido");
+  const col = await getConversacionesCol();
+  const _id = typeof id === "string" ? new mongoose.Types.ObjectId(id) : id;
+
+  const when = mensaje?.updatedAt || mensaje?.fecha || mensaje?.createdAt || new Date();
+
+  await col.updateOne(
+    { _id },
+    { $set: {
+        ultimoMensaje: mensaje,
+        lastMsgUpdatedAt: new Date(when), // 👈 clave para ordenar
+        updatedAt: new Date()             // opcional, útil para audits
+      }
+    }
+  );
+  return true;
+}
+
 
 module.exports = {
   listConversaciones,
@@ -180,5 +175,6 @@ module.exports = {
   getConversacionesCol,
   obtenerphone,
   setLidById,
-  setWpidById
+  setWpidById,
+  guardarUltimoMensaje
 };
