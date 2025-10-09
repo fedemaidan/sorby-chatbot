@@ -29,8 +29,8 @@ function toWpid(raw = '') {
   return hasAt ? v : `${v}@s.whatsapp.net`;
 }
 
-async function createConversacion({ senderLid, empresa, profile, phone, emisor = "Usuario" }) {  
-  const conv = await repoc.createConversacion({ Lid: senderLid, wPid: phone, empresa, profile, emisor });
+async function createConversacion({ senderLid, empresa, profile, phone, emisor = "Usuario", mensaje }) {  
+  const conv = await repoc.createConversacion({ Lid: senderLid, wPid: phone, empresa, profile, emisor, mensaje });
   const _id = conv?._id ?? conv?.id;
   return _id ? String(_id) : null;
 }
@@ -91,7 +91,7 @@ async function getOrCreateConversacion({ wPidFinal, lidFinal, emisor, empresa, p
       empresa,
       profile,
       phone: wPidFinal ?? null,
-      emisor
+      emisor,
     });
     return String(idCreado);
   }
@@ -155,10 +155,20 @@ async function getUltimosMensajesService({ id, phone, lid, limit, sort } = {}) {
   };
 }
 
+async function actualizarMensajeConversacion({mensaje, id_conversacion }) 
+  {
+  if (!id_conversacion) throw new Error("id_conversacion es requerido");
+  if (!mensaje) return false;
+
+  await repoc.guardarUltimoMensaje({ id: id_conversacion, mensaje });
+  return true;
+  }
+
 module.exports = {
   getConversaciones,
   createConversacion,
   getOrCreateConversacion,
   getConversacionById,
-  getUltimosMensajesService
+  getUltimosMensajesService,
+  actualizarMensajeConversacion
 };
