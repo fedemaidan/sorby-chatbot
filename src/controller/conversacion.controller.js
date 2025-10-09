@@ -60,7 +60,6 @@ module.exports = {
 
   getUltimosMensajes: asyncHandler(async (req, res) => {
     const { id, phone, lid, limit, sort } = req.query;
-    console.log('getUltimosMensajes called with', { id, phone, lid, limit, sort });
     const result = await getUltimosMensajesService({
       id,
       phone,

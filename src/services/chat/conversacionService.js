@@ -29,41 +29,6 @@ function toWpid(raw = '') {
   return hasAt ? v : `${v}@s.whatsapp.net`;
 }
 
-
-// ---------- IDs: devolvemos siempre string del _id ----------
-async function getIdConversacionByLid({ Lid }) {
-  if (typeof Lid === 'undefined' || Lid === null || String(Lid) === '') {
-  }
-  const col = await getConversacionesCol();
-  const doc = await col.findOne({ lid: String(Lid) });
-  return doc || null;
-}
-
-
-let colConversacionesPromise = null;
-async function getConversacionesCol() {
-  if (!mongoose.connection?.db) {
-    throw new Error("Mongo no conectado. Llamaron al repo antes de connectToMongoDB().");
-  }
-  if (!colConversacionesPromise) {
-    colConversacionesPromise = (async () => {
-      const col = mongoose.connection.db.collection("conversaciones");
-      await col.createIndex({ lid: 1 }, { name: "uniq_lid" });
-      await col.createIndex({ wPid: 1 }, { name: "by_wPid" });
-      await col.createIndex({ updatedAt: -1 }, { name: "by_updatedAt_desc" });
-      return col;
-    })();
-  }
-  return colConversacionesPromise;
-}
-
-/** 🔎 Conversación completa por wPid (remoteJid tal cual) */
-async function getIdConversacionByWpid({ wPid }) {
-  const col = await getConversacionesCol();
-  const doc = await col.findOne({ wPid: String(wPid) });
-  return doc || null;
-}
-
 async function createConversacion({ senderLid, empresa, profile, phone, emisor = "Usuario" }) {  
   const conv = await repoc.createConversacion({ Lid: senderLid, wPid: phone, empresa, profile, emisor });
   const _id = conv?._id ?? conv?.id;
@@ -148,13 +113,12 @@ async function resolveConversacionId({ id, phone, lid }) {
 
   if (phone) {
     const wpid = toWpid(phone);
-    console.log(wpid)
-    const found = await getIdConversacionByWpid({ wPid: wpid });
-    if (found) return String(found);
+    const conv = await repoc.getIdConversacionByWpid({ wPid: wpid });
+    if (conv) return String(conv._id);
   }
   if (lid) {
-    const found = await getIdConversacionByLid({ Lid: String(lid).trim() });
-    if (found) return String(found);
+    const conv = await repoc.getIdConversacionByLid({ Lid: String(lid).trim() });
+    if (conv) return String(conv._id);
   }
   return null;
 }
@@ -169,11 +133,8 @@ async function getUltimosMensajesService({ id, phone, lid, limit, sort } = {}) {
   const finalLimit = Math.min(LIM_MAX, Math.max(1, limNum));
 
   const sortDir = (String(sort || 'desc').toLowerCase() === 'asc') ? 1 : -1;
-    console.log('getUltimosMensajesService params:', { id, phone, lid, limit: finalLimit, sort: sortDir });
   const idConversacion = await resolveConversacionId({ id, phone, lid });
-  console.log('Resolved id_conversacion:', idConversacion);
   if (!idConversacion) {
-    // devolvemos formato estable
     return {
       error: 'No se pudo resolver la conversación. Proveé id, phone o lid válidos.'
     };
@@ -194,16 +155,7 @@ async function getUltimosMensajesService({ id, phone, lid, limit, sort } = {}) {
   };
 }
 
-
 module.exports = {
-  // ...
-  getOrCreateConversacion,
-  // ...
-};
-
-module.exports = {
-  getIdConversacionByLid,
-  getIdConversacionByWpid,
   getConversaciones,
   createConversacion,
   getOrCreateConversacion,
