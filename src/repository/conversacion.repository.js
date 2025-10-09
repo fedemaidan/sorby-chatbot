@@ -156,7 +156,7 @@ async function guardarUltimoMensaje({ id, mensaje }) {
   await col.updateOne(
     { _id },
     { $set: {
-        ultMensaje: mensaje,
+        ultimoMensaje: mensaje,
         lastMsgUpdatedAt: new Date(when), // 👈 clave para ordenar
         updatedAt: new Date()             // opcional, útil para audits
       }
