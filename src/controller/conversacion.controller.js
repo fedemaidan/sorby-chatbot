@@ -13,13 +13,14 @@ module.exports = {
       ...(telefono && { 'profile.phone': telefono }),
     });
     const opciones = cleanObj({
-      offset,
-      limit,
-      ...(sort && {
-        sort:
-          sort.toLowerCase() === 'asc' ? { updatedAt: 1 } : { updatedAt: -1 },
-      }),
-    });
+  offset,
+  limit,
+  ...(sort && {
+    sort: sort.toLowerCase() === 'asc'
+      ? { lastMsgUpdatedAt: 1 }
+      : { lastMsgUpdatedAt: -1 },
+  }),
+});
     const conversaciones = await getConversaciones({
       filters: base,
       options: opciones,

@@ -2,7 +2,7 @@ const repo = require("../../repository/mensajes.repository");
 const enviarMensaje = require("../EnviarMensaje/EnviarMensaje");
 const { getFlowByUserId } = require("../flow/flowService");
 const { getEmpAndprofile } = require("../profileService/profileService");
-const { createConversacion, getIdConversacionByLid, getIdConversacionByWpid, getOrCreateConversacion } = require("./conversacionService");
+const { createConversacion, getIdConversacionByLid, getIdConversacionByWpid, getOrCreateConversacion, actualizarMensajeConversacion } = require("./conversacionService");
 
 async function createMessage({ phone, message, type, caption, emisor, receptor, senderLid }) {
   // 1) ordenar IDs: cuál es @lid y cuál es @s.whatsapp.net
@@ -27,13 +27,12 @@ async function createMessage({ phone, message, type, caption, emisor, receptor, 
     profile,
     flowdata: flowdata || {},
     lid:   lidFinal ?? senderLid,  // guardar el @lid correcto
-    phone: wPidFinal ?? phone      // guardar el @wp correcto
+    phone: wPidFinal ?? phone,      // guardar el @wp correcto
+    fromMe: false
   };
 
   return repo.create(mensajeCompleto);
 }
-
-
 
 async function createMessageSelf({ phone, message, type, caption, emisor, receptor, senderLid }) {
   // 1) Ordenar quién es @lid y quién es @s.whatsapp.net
@@ -59,8 +58,11 @@ async function createMessageSelf({ phone, message, type, caption, emisor, recept
     profile,
     flowdata: flowdata || {},
     lid:   lidFinal ?? senderLid, // guardar el @lid correcto
-    phone: wPidFinal ?? phone     // guardar el @wp correcto
+    phone: wPidFinal ?? phone,     // guardar el @wp correcto
+    fromMe: true
   };
+
+  await actualizarMensajeConversacion({mensaje: mensajeCompleto, id_conversacion})
 
   return repo.create(mensajeCompleto);
 }

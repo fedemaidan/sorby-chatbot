@@ -107,45 +107,64 @@ async function setWpidById({ id, wPid }) {
  * Lista conversaciones + (opcional) su último mensaje
  * Une _id(ObjectId) con mensajes.id_conversacion(string)
  */
+
 async function listConversaciones({ filter = {}, options = {}, withUltimoMensaje = true } = {}) {
   const col = await getConversacionesCol();
 
-  const limit = Math.max(1, Math.min(Number(options.limit ?? 150), 500));
+  const limit  = Math.max(1, Math.min(Number(options.limit ?? 150), 500));
   const offset = Math.max(0, Number(options.offset ?? 0));
-  const sortDir = Number(options.sort ?? -1) === 1 ? 1 : -1;
 
+  // aceptar number | string | object ({lastMsgUpdatedAt:1} / {updatedAt:1})
+  let sortDir = -1;
+  const s = options.sort;
+  if (typeof s === 'number') sortDir = s === 1 ? 1 : -1;
+  else if (typeof s === 'string') sortDir = s.toLowerCase() === 'asc' ? 1 : -1;
+  else if (s && typeof s === 'object') {
+    const v = s.lastMsgUpdatedAt ?? s.updatedAt ?? s.createdAt;
+    sortDir = v === 1 ? 1 : -1;
+  }
+
+  // filtros
   const query = {};
   if (filter.lid)  query.lid  = String(filter.lid);
   if (filter.wPid) query.wPid = String(filter.wPid);
   if (typeof filter.empresa !== "undefined") query.empresa = filter.empresa;
 
-  const pipeline = [
-    { $match: query },
-    { $sort: { updatedAt: sortDir } },
-    { $skip: offset },
-    { $limit: limit },
-  ];
+  // proyección (ocultar ultMensaje si no lo querés devolver)
+  const projection = withUltimoMensaje ? undefined : { ultMensaje: 0, ultimoMensaje: 0 };
 
-  if (withUltimoMensaje) {
-    pipeline.push(
-      {
-        $lookup: {
-          from: "mensajes",
-          let: { convId: { $toString: "$_id" } },        // <- convertimos _id → string
-          pipeline: [
-            { $match: { $expr: { $eq: ["$id_conversacion", "$$convId"] } } },
-            { $sort: { createdAt: -1 } },
-            { $limit: 1 }
-          ],
-          as: "ultimoMensaje"
-        }
-      },
-      { $addFields: { ultimoMensaje: { $arrayElemAt: ["$ultimoMensaje", 0] } } }
-    );
-  }
+  // sort por actividad: lastMsgUpdatedAt (fallback a updatedAt)
+  const sort = { lastMsgUpdatedAt: sortDir, updatedAt: sortDir, _id: -1 };
 
-  return col.aggregate(pipeline).toArray();
+  return col
+    .find(query, { projection })
+    .sort(sort)
+    .skip(offset)
+    .limit(limit)
+    .toArray();
 }
+
+
+
+async function guardarUltimoMensaje({ id, mensaje }) {
+  if (!id) throw new Error("id es requerido");
+  const col = await getConversacionesCol();
+  const _id = typeof id === "string" ? new mongoose.Types.ObjectId(id) : id;
+
+  const when = mensaje?.updatedAt || mensaje?.fecha || mensaje?.createdAt || new Date();
+
+  await col.updateOne(
+    { _id },
+    { $set: {
+        ultMensaje: mensaje,
+        lastMsgUpdatedAt: new Date(when), // 👈 clave para ordenar
+        updatedAt: new Date()             // opcional, útil para audits
+      }
+    }
+  );
+  return true;
+}
+
 
 module.exports = {
   listConversaciones,
@@ -156,5 +175,6 @@ module.exports = {
   getConversacionesCol,
   obtenerphone,
   setLidById,
-  setWpidById
+  setWpidById,
+  guardarUltimoMensaje
 };
