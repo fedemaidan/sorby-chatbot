@@ -58,22 +58,6 @@ async function create(mensaje = {}) {
   return doc;
 }
 
-/**
- * Lista mensajes por conversación.
- * @param {string} id_conversacion
- * @param {number} limit - default 100
- * @param {1|-1} sort - 1 asc (antiguos→nuevos), -1 desc (nuevos→antiguos)
- */
-async function getMensajesByConversacionId({ id_conversacion, limit = 30, sort = 1 }) {
-  if (!id_conversacion) throw new Error("id_conversacion es requerido");
-  const col = await getCol();
-
-  return col
-    .find({ id_conversacion: String(id_conversacion) })
-    .sort({ createdAt: sort })
-    .limit(limit)
-    .toArray();
-}
 
 async function getMensajesByConversacionId({ id_conversacion, filter = {}, options = {} }) {
   if (!id_conversacion) throw new Error("id_conversacion es requerido");

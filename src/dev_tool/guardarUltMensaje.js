@@ -1,18 +1,23 @@
 require('dotenv/config');
 const connectToMongoDB = require("../Utiles/mongoDB/dBconnect");
-const { getConversaciones } = require('../services/chat/conversacionService');
+const { getMensajesByConversacionId } = require('../repository/mensajes.repository');
+const { getConversaciones, actualizarMensajeConversacion } = require('../services/chat/conversacionService');
 
 async function guardarUltMensaje() {
   try {
     await connectToMongoDB();
     const conversaciones = await getConversaciones();
 
-    for (const conv of conversaciones.items) {
+    for (const conv of conversaciones) {
       const id = conv._id || '';
-      console.log(`ID de la conversación: ${id}`);
+      const mensajes= await getMensajesByConversacionId({id_conversacion: id,  options: {limit: 1, sort:  -1 } });
+      console.log("====================================");
+      mensajes.forEach(element => {
+        console.log(element.createdAt)
+      });
+      
+      await actualizarMensajeConversacion({mensaje: mensajes[0], id_conversacion: id});
     }
-
-
 
 
 
