@@ -21,38 +21,12 @@ function pick(valA, valB, fallback) {
   return (valA ?? valB ?? fallback);
 }
 
-// ---------- IDs: devolvemos siempre string del _id ----------
-async function getIdConversacionByLid({ Lid }) {
-  if (typeof Lid === 'undefined' || Lid === null || String(Lid) === '') {
-  }
-  const col = await getConversacionesCol();
-  const doc = await col.findOne({ lid: String(Lid) });
-  return doc || null;
-}
-
-
-let colConversacionesPromise = null;
-async function getConversacionesCol() {
-  if (!mongoose.connection?.db) {
-    throw new Error("Mongo no conectado. Llamaron al repo antes de connectToMongoDB().");
-  }
-  if (!colConversacionesPromise) {
-    colConversacionesPromise = (async () => {
-      const col = mongoose.connection.db.collection("conversaciones");
-      await col.createIndex({ lid: 1 }, { name: "uniq_lid" });
-      await col.createIndex({ wPid: 1 }, { name: "by_wPid" });
-      await col.createIndex({ updatedAt: -1 }, { name: "by_updatedAt_desc" });
-      return col;
-    })();
-  }
-  return colConversacionesPromise;
-}
-
-/** 🔎 Conversación completa por wPid (remoteJid tal cual) */
-async function getIdConversacionByWpid({ wPid }) {
-  const col = await getConversacionesCol();
-  const doc = await col.findOne({ wPid: String(wPid) });
-  return doc || null;
+function toWpid(raw = '') {
+  const v = String(raw || '').trim();
+  if (!v) return '';
+  const hasAt = /@/i.test(v);
+  const isWpid = /@{1,2}s\.whatsapp\.net$/i.test(v) || /@g\.us$/i.test(v) || /@broadcast$/i.test(v);
+  return hasAt ? v : `${v}@s.whatsapp.net`;
 }
 
 async function createConversacion({ senderLid, empresa, profile, phone, emisor = "Usuario" }) {  
@@ -134,11 +108,57 @@ async function getOrCreateConversacion({ wPidFinal, lidFinal, emisor, empresa, p
   return conv._id;
 }
 
+async function resolveConversacionId({ id, phone, lid }) {
+  if (id) return String(id).trim();
+
+  if (phone) {
+    const wpid = toWpid(phone);
+    const conv = await repoc.getIdConversacionByWpid({ wPid: wpid });
+    if (conv) return String(conv._id);
+  }
+  if (lid) {
+    const conv = await repoc.getIdConversacionByLid({ Lid: String(lid).trim() });
+    if (conv) return String(conv._id);
+  }
+  return null;
+}
+
+async function getUltimosMensajesService({ id, phone, lid, limit, sort } = {}) {
+  const LIM_DEF = 10;
+  const LIM_MAX = 100;
+
+  const limNum = ensureLimit(
+    Number.isFinite(+limit) ? parseInt(limit, 10) : LIM_DEF
+  );
+  const finalLimit = Math.min(LIM_MAX, Math.max(1, limNum));
+
+  const sortDir = (String(sort || 'desc').toLowerCase() === 'asc') ? 1 : -1;
+  const idConversacion = await resolveConversacionId({ id, phone, lid });
+  if (!idConversacion) {
+    return {
+      error: 'No se pudo resolver la conversación. Proveé id, phone o lid válidos.'
+    };
+  }
+
+  const items = await repo.getMensajesByConversacionId({
+    id_conversacion: String(idConversacion),
+    filter: {},
+    options: { limit: finalLimit, offset: 0, sort: sortDir }
+  });
+
+  return {
+    id_conversacion: String(idConversacion),
+    sort: sortDir === 1 ? 'asc' : 'desc',
+    limit: finalLimit,
+    total: items?.length || 0,
+    items
+  };
+}
+
 module.exports = {
-  getIdConversacionByLid,
-  getIdConversacionByWpid,
   getConversaciones,
   createConversacion,
   getOrCreateConversacion,
-  getConversacionById
+  getConversacionById,
+  getUltimosMensajesService
 };
