@@ -31,6 +31,8 @@ async function createMessage({ phone, message, type, caption, emisor, receptor, 
     fromMe: false
   };
 
+await actualizarMensajeConversacion({mensaje: mensajeCompleto, id_conversacion})
+
   return repo.create(mensajeCompleto);
 }
 
