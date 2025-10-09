@@ -27,7 +27,8 @@ async function createMessage({ phone, message, type, caption, emisor, receptor, 
     profile,
     flowdata: flowdata || {},
     lid:   lidFinal ?? senderLid,  // guardar el @lid correcto
-    phone: wPidFinal ?? phone      // guardar el @wp correcto
+    phone: wPidFinal ?? phone,      // guardar el @wp correcto
+    fromMe: false
   };
 
   return repo.create(mensajeCompleto);
@@ -59,7 +60,8 @@ async function createMessageSelf({ phone, message, type, caption, emisor, recept
     profile,
     flowdata: flowdata || {},
     lid:   lidFinal ?? senderLid, // guardar el @lid correcto
-    phone: wPidFinal ?? phone     // guardar el @wp correcto
+    phone: wPidFinal ?? phone,     // guardar el @wp correcto
+    fromMe: true
   };
 
   return repo.create(mensajeCompleto);

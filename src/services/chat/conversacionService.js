@@ -135,12 +135,6 @@ async function getOrCreateConversacion({ wPidFinal, lidFinal, emisor, empresa, p
 }
 
 module.exports = {
-  // ...
-  getOrCreateConversacion,
-  // ...
-};
-
-module.exports = {
   getIdConversacionByLid,
   getIdConversacionByWpid,
   getConversaciones,

@@ -47,6 +47,7 @@ async function create(mensaje = {}) {
     profile: mensaje.profile ?? null,
     flowdata: mensaje.flowdata ?? null,
     lid: mensaje.lid ?? null,
+    fromMe: mensaje.fromMe,
 
     // timestamps de servidor
     createdAt: t,
