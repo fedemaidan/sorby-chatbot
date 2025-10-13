@@ -17,7 +17,8 @@ const cleanObj = (obj) => {
 };
 
 const normalizeSort = (s, def = 1) => {
-  const n = toInt(s, def);
+  const n = Number(s);
+  if (!Number.isFinite(n)) return def >= 0 ? 1 : -1;
   return n >= 0 ? 1 : -1;
 };
 
