@@ -2,12 +2,14 @@ const service = require("../services/analisis/analisisService");
 
 async function getAnalisis(req, res) {
     try {
-        const { fechaInicio, fechaFin, empresaId, limit, offset } = req.query;
+        const { fechaInicio, fechaFin, empresaId, empresaNombre, usuario, limit, offset } = req.query;
         
         const data = await service.obtenerAnalisis({ 
             fechaInicio, 
             fechaFin, 
             empresaId, 
+            empresaNombre,
+            usuario,
             limit, 
             offset 
         });

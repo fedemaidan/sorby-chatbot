@@ -26,7 +26,7 @@ async function guardarAnalisis(data) {
     });
 }
 
-async function getAnalisis({ fechaInicio, fechaFin, empresaId, limit = 100, offset = 0 }) {
+async function getAnalisis({ fechaInicio, fechaFin, empresaId, empresaNombre, usuario, limit = 100, offset = 0 }) {
     const col = await getAnalisisCol();
     const query = {};
 
@@ -40,6 +40,17 @@ async function getAnalisis({ fechaInicio, fechaFin, empresaId, limit = 100, offs
 
     if (empresaId) {
         query["empresa.id"] = empresaId;
+    }
+
+    if (empresaNombre) {
+        query["empresa.nombre"] = { $regex: empresaNombre, $options: 'i' };
+    }
+
+    if (usuario) {
+        query["$or"] = [
+            { "usuario.nombre": { $regex: usuario, $options: 'i' } },
+            { "usuario.telefono": { $regex: usuario, $options: 'i' } }
+        ];
     }
 
     return col.find(query)
