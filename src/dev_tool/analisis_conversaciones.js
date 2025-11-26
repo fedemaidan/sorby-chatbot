@@ -1,46 +1,59 @@
 require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
 const connectToMongoDB = require("../Utiles/mongoDB/dBconnect");
-const { getMensajesCol } = require("../repository/conversacion.repository");
+const { getMensajesCol, getConversacionesCol } = require("../repository/conversacion.repository");
+const { connectToWhatsApp } = require("../Utiles/Mensajes/whatsapp");
 const openai = require("../Utiles/Chatgpt/openai");
 const mongoose = require("mongoose");
 
 async function main() {
     // Parse arguments for date range
     const args = process.argv.slice(2);
+    let fechaInicio, fechaFin;
+    let fechaInicioStr, fechaFinStr;
+
     if (args.length === 0) {
-        console.log("Uso: node src/dev_tool/analisis_conversaciones.js <fecha_inicio> [fecha_fin]");
-        console.log("Formato fecha: YYYY-MM-DD");
-        process.exit(1);
-    }
+        // Si no hay argumentos, usar ayer
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        yesterday.setHours(0, 0, 0, 0);
+        
+        fechaInicio = new Date(yesterday);
+        fechaInicioStr = fechaInicio.toISOString().split('T')[0];
+        
+        const yesterdayEnd = new Date(yesterday);
+        yesterdayEnd.setHours(23, 59, 59, 999);
+        fechaFin = yesterdayEnd;
+        fechaFinStr = fechaFin.toISOString().split('T')[0];
+        
+        console.log("Sin argumentos: Analizando el día de ayer.");
+    } else {
+        fechaInicioStr = args[0];
+        fechaFinStr = args[1] || fechaInicioStr;
 
-    const fechaInicioStr = args[0];
-    const fechaFinStr = args[1] || fechaInicioStr;
+        fechaInicio = new Date(fechaInicioStr);
+        if (fechaInicioStr.length <= 10) fechaInicio.setHours(0, 0, 0, 0);
 
-    const fechaInicio = new Date(fechaInicioStr);
-    // Ajustar fecha inicio a 00:00:00 si solo se pasa la fecha
-    if (fechaInicioStr.length <= 10) {
-        fechaInicio.setHours(0, 0, 0, 0);
-    }
-
-    const fechaFin = new Date(fechaFinStr);
-    // Ajustar fecha fin a 23:59:59 si solo se pasa la fecha
-    if (fechaFinStr.length <= 10) {
-        fechaFin.setHours(23, 59, 59, 999);
+        fechaFin = new Date(fechaFinStr);
+        if (fechaFinStr.length <= 10) fechaFin.setHours(23, 59, 59, 999);
     }
 
     console.log(`Analizando desde ${fechaInicio.toLocaleString()} hasta ${fechaFin.toLocaleString()}...`);
 
     try {
         await connectToMongoDB();
+        console.log("Conectando a WhatsApp...");
+        const sock = await connectToWhatsApp();
+        
+        // Esperar un poco para asegurar conexión
+        await new Promise(r => setTimeout(r, 5000));
 
         const colMensajes = await getMensajesCol();
+        const colConversaciones = await getConversacionesCol();
         
-        // Fetch messages
         const mensajes = await colMensajes.find({
-            createdAt: {
-                $gte: fechaInicio,
-                $lte: fechaFin
-            }
+            createdAt: { $gte: fechaInicio, $lte: fechaFin }
         }).sort({ id_conversacion: 1, createdAt: 1 }).toArray();
 
         console.log(`Se encontraron ${mensajes.length} mensajes.`);
@@ -50,64 +63,175 @@ async function main() {
             process.exit(0);
         }
 
-        // Agrupar por conversación
         const conversaciones = {};
         mensajes.forEach(m => {
-            if (!conversaciones[m.id_conversacion]) {
-                conversaciones[m.id_conversacion] = [];
-            }
+            if (!conversaciones[m.id_conversacion]) conversaciones[m.id_conversacion] = [];
             conversaciones[m.id_conversacion].push(m);
         });
 
-        console.log(`Se encontraron ${Object.keys(conversaciones).length} conversaciones activas en el periodo.`);
+        console.log(`Se encontraron ${Object.keys(conversaciones).length} conversaciones activas.`);
 
-        let conversationText = "";
+        const resultados = [];
         let convIndex = 1;
+        const totalConversaciones = Object.keys(conversaciones).length;
 
         for (const idConv in conversaciones) {
             const msgs = conversaciones[idConv];
-            conversationText += `\n--- Conversación ${convIndex} (ID: ${idConv}) ---\n`;
             
+            // Obtener info de la conversación
+            let empresaId = "";
+            let empresaNombre = "";
+            let telefono = "Desconocido";
+            let nombreUsuario = "";
+            
+            try {
+                const convDoc = await colConversaciones.findOne({ _id: new mongoose.Types.ObjectId(idConv) });
+                if (convDoc) {
+                    telefono = convDoc.wPid || convDoc.lid || "Sin teléfono";
+                    
+                    if (convDoc.empresa) {
+                        empresaId = convDoc.empresa._id || convDoc.empresa.id || "";
+                        empresaNombre = convDoc.empresa.nombre || convDoc.empresa.razonSocial || convDoc.empresa.razon_social || "Sin nombre";
+                    }
+                    
+                    if (convDoc.profile) {
+                        const nombre = convDoc.profile.nombre || convDoc.profile.name || "";
+                        const apellido = convDoc.profile.apellido || convDoc.profile.lastname || "";
+                        nombreUsuario = `${nombre} ${apellido}`.trim();
+                    }
+                }
+            } catch (e) {
+                console.error(`Error buscando info de conversación ${idConv}:`, e.message);
+            }
+
+            let conversationText = "";
             msgs.forEach(m => {
                 const sender = m.fromMe ? "BOT" : "USUARIO";
                 const time = new Date(m.createdAt).toLocaleString();
                 const content = m.message || m.caption || "[Sin texto]";
                 conversationText += `[${time}] ${sender}: ${content}\n`;
             });
+
+            const prompt = `
+Analiza la siguiente conversación y extrae las métricas en formato JSON.
+NO incluyas markdown, solo el JSON puro.
+
+Métricas requeridas:
+- movimientos_caja_creados (number)
+- remitos_cargados (number)
+- acopios_cargados (number)
+- correcciones_caja (number): veces que el usuario corrigió datos sugeridos en caja
+- correcciones_acopio (number): veces que el usuario corrigió datos sugeridos en acopio
+- flujo_roto (number): veces que el flujo se rompió o el bot no entendió
+- experiencia_cliente (number): 1-100 (sé exigente)
+- resumen (string): breve resumen de lo sucedido
+
+Conversación:
+${conversationText}
+            `;
+
+            console.log(`Analizando ${convIndex}/${totalConversaciones} (ID: ${idConv})...`);
+
+            try {
+                const completion = await openai.chat.completions.create({
+                    messages: [{ role: "user", content: prompt }],
+                    model: "gpt-4o",
+                });
+
+                let content = completion.choices[0].message.content;
+                // Limpiar markdown si existe
+                content = content.replace(/```json/g, '').replace(/```/g, '').trim();
+                
+                const data = JSON.parse(content);
+                
+                resultados.push({
+                    id: idConv,
+                    empresaId,
+                    empresaNombre,
+                    telefono,
+                    nombreUsuario,
+                    ...data
+                });
+
+            } catch (err) {
+                console.error(`Error analizando conversación ${idConv}:`, err.message);
+                resultados.push({
+                    id: idConv,
+                    empresaId,
+                    empresaNombre,
+                    telefono,
+                    nombreUsuario,
+                    error: "Falló análisis"
+                });
+            }
             convIndex++;
         }
 
-        const prompt = `
-Analiza las siguientes conversaciones entre un bot y usuarios y extrae las siguientes métricas GLOBALES (sumando todas las conversaciones):
+        // Generar CSV
+        const headers = [
+            "ID Conversacion", "Empresa ID", "Empresa Nombre", "Telefono", "Usuario",
+            "Movimientos Caja", "Remitos", "Acopios", 
+            "Correcciones Caja", "Correcciones Acopio", 
+            "Flujo Roto", "Experiencia (1-100)", "Resumen"
+        ];
 
-1. Cantidad de movimientos de caja creados.
-2. Cantidad de remitos cargados.
-3. Cantidad de acopios cargados.
-4. Cuantas veces tuvo que corregir los datos que le sugiere el bot en movimientos de caja.
-5. Cuantas veces tuvo que corregir los datos que le sugiere el bot en remitos de acopio.
-6. Cuantas veces el flujo quedó roto afectando la experiencia del usuario.
-7. Del 1 al 100 como evaluarías la experiencia del cliente usando el bot (promedio general). Debes ser exigente.
+        const csvRows = [headers.join(",")];
 
-Responde con un formato claro, listando cada punto.
-
-Conversaciones:
-${conversationText}
-        `;
-
-        console.log("Enviando a ChatGPT para análisis...");
-
-        const completion = await openai.chat.completions.create({
-            messages: [{ role: "user", content: prompt }],
-            model: "gpt-4o",
+        resultados.forEach(r => {
+            const row = [
+                r.id,
+                `"${r.empresaId}"`,
+                `"${r.empresaNombre}"`,
+                r.telefono,
+                `"${r.nombreUsuario}"`,
+                r.movimientos_caja_creados || 0,
+                r.remitos_cargados || 0,
+                r.acopios_cargados || 0,
+                r.correcciones_caja || 0,
+                r.correcciones_acopio || 0,
+                r.flujo_roto || 0,
+                r.experiencia_cliente || 0,
+                `"${(r.resumen || '').replace(/"/g, '""')}"`
+            ];
+            csvRows.push(row.join(","));
         });
 
-        console.log("\n--- Resultado del Análisis ---\n");
-        console.log(completion.choices[0].message.content);
+        const csvContent = csvRows.join("\n");
+        const filePath = path.join(__dirname, `reporte_${Date.now()}.csv`);
+        fs.writeFileSync(filePath, csvContent);
+        console.log(`✅ CSV generado exitosamente en: ${filePath}`);
+
+        // Enviar por WhatsApp
+        const targetPhone = "5491162948395@s.whatsapp.net";
+        console.log(`Intentando enviar reporte a ${targetPhone}...`);
+        
+        try {
+            // Verificar estado del socket
+            if (!sock) {
+                throw new Error("Socket no inicializado");
+            }
+
+            await sock.sendMessage(targetPhone, {
+                document: fs.readFileSync(filePath),
+                mimetype: 'text/csv',
+                fileName: 'reporte_conversaciones.csv',
+                caption: `Reporte de análisis de conversaciones (${fechaInicioStr} - ${fechaFinStr})`
+            });
+
+            console.log("🚀 Reporte enviado con éxito por WhatsApp.");
+            // Solo borrar si se envió bien
+            fs.unlinkSync(filePath);
+            console.log("Archivo temporal eliminado.");
+
+        } catch (sendError) {
+            console.error("❌ No se pudo enviar el reporte por WhatsApp.");
+            console.error("Detalle del error:", sendError.message);
+            console.log(`⚠️ El archivo CSV se mantiene en: ${filePath}`);
+        }
 
     } catch (error) {
-        console.error("Error:", error);
+        console.error("Error global:", error);
     } finally {
-        // Force exit because mongoose connection might keep process alive
         process.exit(0);
     }
 }
