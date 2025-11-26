@@ -60,4 +60,14 @@ async function getAnalisis({ fechaInicio, fechaFin, empresaId, empresaNombre, us
         .toArray();
 }
 
-module.exports = { getAnalisisCol, guardarAnalisis, getAnalisis };
+async function getAnalisisById(id) {
+    const col = await getAnalisisCol();
+    return col.findOne({ _id: new mongoose.Types.ObjectId(id) });
+}
+
+module.exports = {
+    getAnalisisCol,
+    guardarAnalisis,
+    getAnalisis,
+    getAnalisisById
+};

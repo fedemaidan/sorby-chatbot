@@ -165,6 +165,13 @@ async function guardarUltimoMensaje({ id, mensaje }) {
   return true;
 }
 
+async function getMensajesRango(idConversacion, fechaInicio, fechaFin) {
+    const col = await getMensajesCol();
+    return col.find({
+        id_conversacion: idConversacion,
+        createdAt: { $gte: new Date(fechaInicio), $lte: new Date(fechaFin) }
+    }).sort({ createdAt: 1 }).toArray();
+}
 
 module.exports = {
   listConversaciones,
@@ -176,5 +183,6 @@ module.exports = {
   obtenerphone,
   setLidById,
   setWpidById,
-  guardarUltimoMensaje
+  guardarUltimoMensaje,
+  getMensajesRango
 };

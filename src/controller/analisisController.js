@@ -25,6 +25,21 @@ async function getAnalisis(req, res) {
     }
 }
 
+async function exportConversacion(req, res) {
+    try {
+        const { id } = req.params;
+        const { filename, content } = await service.exportarConversacion(id);
+        
+        res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+        res.setHeader('Content-Type', 'text/plain');
+        res.send(content);
+    } catch (error) {
+        console.error("Error en exportConversacion:", error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+}
+
 module.exports = {
-    getAnalisis
+    getAnalisis,
+    exportConversacion
 };
