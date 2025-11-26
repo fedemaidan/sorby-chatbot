@@ -61,7 +61,7 @@ async function getConversacionById(id, { limit, offset, sort } = {}) {
 // ---------- Listado de conversaciones ----------
 async function getConversaciones({
   // soportamos ambos estilos: top-level o dentro de options
-  filter, filters, options = {}, limit, offset, sort, withUltimoMensaje = true
+  filter, filters, search, options = {}, limit, offset, sort, withUltimoMensaje = true
 } = {}) {
   const finalFilter = { ...(filters || {}), ...(filter || {}) };
 
@@ -72,6 +72,7 @@ async function getConversaciones({
 
   return repoc.listConversaciones({
     filter: finalFilter,
+    search,
     options: { limit: finalLimit, offset: finalOffset, sort: finalSort },
     withUltimoMensaje
   });
@@ -164,11 +165,40 @@ async function actualizarMensajeConversacion({mensaje, id_conversacion })
   return true;
   }
 
+async function downloadConversacion(id, { fechaInicio, fechaFin }) {
+    const conv = await repoc.getConversacionById(id);
+    if (!conv) throw new Error("Conversación no encontrada");
+
+    const mensajes = await repoc.getMensajesRango(id, fechaInicio, fechaFin);
+
+    let text = `REPORTE DE CONVERSACIÓN\n`;
+    text += `Fecha Inicio: ${new Date(fechaInicio).toLocaleString()}\n`;
+    text += `Fecha Fin: ${new Date(fechaFin).toLocaleString()}\n`;
+    text += `Empresa: ${conv.empresa?.nombre || 'N/A'} (${conv.empresa?.id || 'N/A'})\n`;
+    text += `Usuario: ${conv.profile?.name || 'N/A'} (${conv.wPid || conv.lid || 'N/A'})\n`;
+    text += `----------------------------------------\n\n`;
+
+    mensajes.forEach(m => {
+        const time = new Date(m.createdAt).toLocaleString();
+        const sender = m.fromMe ? "BOT" : "USUARIO";
+        const content = m.message || m.caption || "[Sin texto]";
+        text += `[${time}] ${sender}: ${content}\n`;
+    });
+
+    const filename = `conversacion_${conv.profile?.name || 'anon'}_${new Date().getTime()}.txt`.replace(/ /g, '_');
+
+    return {
+        filename,
+        content: text
+    };
+}
+
 module.exports = {
   getConversaciones,
   createConversacion,
   getOrCreateConversacion,
   getConversacionById,
   getUltimosMensajesService,
-  actualizarMensajeConversacion
+  actualizarMensajeConversacion,
+  downloadConversacion
 };

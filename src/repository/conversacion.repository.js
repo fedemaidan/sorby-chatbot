@@ -108,7 +108,7 @@ async function setWpidById({ id, wPid }) {
  * Une _id(ObjectId) con mensajes.id_conversacion(string)
  */
 
-async function listConversaciones({ filter = {}, options = {}, withUltimoMensaje = true } = {}) {
+async function listConversaciones({ filter = {}, search, options = {}, withUltimoMensaje = true } = {}) {
   const col = await getConversacionesCol();
 
   const limit  = Math.max(1, Math.min(Number(options.limit ?? 150), 500));
@@ -125,10 +125,32 @@ async function listConversaciones({ filter = {}, options = {}, withUltimoMensaje
   }
 
   // filtros
-  const query = {};
-  if (filter.lid)  query.lid  = String(filter.lid);
-  if (filter.wPid) query.wPid = String(filter.wPid);
-  if (typeof filter.empresa !== "undefined") query.empresa = filter.empresa;
+  const query = { ...filter };
+  if (query.lid)  query.lid  = String(query.lid);
+  if (query.wPid) query.wPid = String(query.wPid);
+  
+  if (search) {
+      const regex = { $regex: search, $options: 'i' };
+      const orConditions = [
+          { "empresa.nombre": regex },
+          { "profile.name": regex },
+          { "profile.firstName": regex },
+          { "profile.lastName": regex },
+          { "profile.phone": regex },
+          { "wPid": regex },
+          { "lid": regex }
+      ];
+      
+      if (query.$or) {
+          query.$and = [
+              { $or: query.$or },
+              { $or: orConditions }
+          ];
+          delete query.$or;
+      } else {
+          query.$or = orConditions;
+      }
+  }
 
   // proyección (ocultar ultMensaje si no lo querés devolver)
   const projection = withUltimoMensaje ? undefined : { ultMensaje: 0, ultimoMensaje: 0 };
@@ -165,6 +187,11 @@ async function guardarUltimoMensaje({ id, mensaje }) {
   return true;
 }
 
+async function getConversacionById(id) {
+    const col = await getConversacionesCol();
+    return col.findOne({ _id: new mongoose.Types.ObjectId(id) });
+}
+
 async function getMensajesRango(idConversacion, fechaInicio, fechaFin) {
     const col = await getMensajesCol();
     return col.find({
@@ -184,5 +211,6 @@ module.exports = {
   setLidById,
   setWpidById,
   guardarUltimoMensaje,
-  getMensajesRango
+  getMensajesRango,
+  getConversacionById
 };

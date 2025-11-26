@@ -1,10 +1,10 @@
 const { asyncHandler, normStr, cleanObj } = require('./utils/general');
-const {getConversaciones, getConversacionById, getUltimosMensajesService} = require('../services/chat/conversacionService');
+const {getConversaciones, getConversacionById, getUltimosMensajesService, downloadConversacion} = require('../services/chat/conversacionService');
 const {enviarMensajeService} = require('../services/chat/mensajesServices');
 
 module.exports = {
   getConversaciones: asyncHandler(async (req, res) => {
-    const { empresaId, empresaNombre, telefono, email, offset, limit, sort } =
+    const { empresaId, empresaNombre, telefono, email, offset, limit, sort, search } =
       req.query;
     const base = cleanObj({
       ...(empresaNombre && { 'empresa.nombre': empresaNombre }),
@@ -23,9 +23,25 @@ module.exports = {
 });
     const conversaciones = await getConversaciones({
       filters: base,
+      search,
       options: opciones,
     });
     return res.status(200).json(conversaciones);
+  }),
+
+  downloadConversacion: asyncHandler(async (req, res) => {
+      const { id } = req.params;
+      const { fechaInicio, fechaFin } = req.query;
+      
+      if (!fechaInicio || !fechaFin) {
+          return res.status(400).json({ error: 'fechaInicio y fechaFin son requeridos' });
+      }
+
+      const { filename, content } = await downloadConversacion(id, { fechaInicio, fechaFin });
+      
+      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+      res.setHeader('Content-Type', 'text/plain');
+      res.send(content);
   }),
 
   getConversacionById: asyncHandler(async (req, res) => {
