@@ -1,9 +1,7 @@
 require('dotenv').config();
-const fs = require('fs');
-const path = require('path');
 const connectToMongoDB = require("../Utiles/mongoDB/dBconnect");
 const { getMensajesCol, getConversacionesCol } = require("../repository/conversacion.repository");
-const { connectToWhatsApp } = require("../Utiles/Mensajes/whatsapp");
+const { guardarAnalisis } = require("../repository/analisis.repository");
 const openai = require("../Utiles/Chatgpt/openai");
 const mongoose = require("mongoose");
 
@@ -12,6 +10,7 @@ async function main() {
     const args = process.argv.slice(2);
     let fechaInicio, fechaFin;
     let fechaInicioStr, fechaFinStr;
+
 
     if (args.length === 0) {
         // Si no hay argumentos, usar ayer
@@ -43,11 +42,6 @@ async function main() {
 
     try {
         await connectToMongoDB();
-        console.log("Conectando a WhatsApp...");
-        const sock = await connectToWhatsApp();
-        
-        // Esperar un poco para asegurar conexión
-        await new Promise(r => setTimeout(r, 5000));
 
         const colMensajes = await getMensajesCol();
         const colConversaciones = await getConversacionesCol();
@@ -144,90 +138,36 @@ ${conversationText}
                 
                 const data = JSON.parse(content);
                 
-                resultados.push({
-                    id: idConv,
-                    empresaId,
-                    empresaNombre,
-                    telefono,
-                    nombreUsuario,
-                    ...data
-                });
+                const analisisData = {
+                    fecha_analisis: new Date(),
+                    rango_analisis: { inicio: fechaInicio, fin: fechaFin },
+                    id_conversacion: idConv,
+                    empresa: { id: empresaId, nombre: empresaNombre },
+                    usuario: { telefono, nombre: nombreUsuario },
+                    metricas: {
+                        movimientos_caja_creados: data.movimientos_caja_creados || 0,
+                        remitos_cargados: data.remitos_cargados || 0,
+                        acopios_cargados: data.acopios_cargados || 0,
+                        correcciones_caja: data.correcciones_caja || 0,
+                        correcciones_acopio: data.correcciones_acopio || 0,
+                        flujo_roto: data.flujo_roto || 0,
+                        experiencia_cliente: data.experiencia_cliente || 0
+                    },
+                    resumen: data.resumen || "",
+                    raw_analysis: data
+                };
+
+                await guardarAnalisis(analisisData);
+                console.log(`✅ Análisis guardado en MongoDB para conversación ${idConv}`);
 
             } catch (err) {
                 console.error(`Error analizando conversación ${idConv}:`, err.message);
-                resultados.push({
-                    id: idConv,
-                    empresaId,
-                    empresaNombre,
-                    telefono,
-                    nombreUsuario,
-                    error: "Falló análisis"
-                });
             }
             convIndex++;
         }
 
-        // Generar CSV
-        const headers = [
-            "ID Conversacion", "Empresa ID", "Empresa Nombre", "Telefono", "Usuario",
-            "Movimientos Caja", "Remitos", "Acopios", 
-            "Correcciones Caja", "Correcciones Acopio", 
-            "Flujo Roto", "Experiencia (1-100)", "Resumen"
-        ];
-
-        const csvRows = [headers.join(",")];
-
-        resultados.forEach(r => {
-            const row = [
-                r.id,
-                `"${r.empresaId}"`,
-                `"${r.empresaNombre}"`,
-                r.telefono,
-                `"${r.nombreUsuario}"`,
-                r.movimientos_caja_creados || 0,
-                r.remitos_cargados || 0,
-                r.acopios_cargados || 0,
-                r.correcciones_caja || 0,
-                r.correcciones_acopio || 0,
-                r.flujo_roto || 0,
-                r.experiencia_cliente || 0,
-                `"${(r.resumen || '').replace(/"/g, '""')}"`
-            ];
-            csvRows.push(row.join(","));
-        });
-
-        const csvContent = csvRows.join("\n");
-        const filePath = path.join(__dirname, `reporte_${Date.now()}.csv`);
-        fs.writeFileSync(filePath, csvContent);
-        console.log(`✅ CSV generado exitosamente en: ${filePath}`);
-
-        // Enviar por WhatsApp
-        const targetPhone = "5491162948395@s.whatsapp.net";
-        console.log(`Intentando enviar reporte a ${targetPhone}...`);
-        
-        try {
-            // Verificar estado del socket
-            if (!sock) {
-                throw new Error("Socket no inicializado");
-            }
-
-            await sock.sendMessage(targetPhone, {
-                document: fs.readFileSync(filePath),
-                mimetype: 'text/csv',
-                fileName: 'reporte_conversaciones.csv',
-                caption: `Reporte de análisis de conversaciones (${fechaInicioStr} - ${fechaFinStr})`
-            });
-
-            console.log("🚀 Reporte enviado con éxito por WhatsApp.");
-            // Solo borrar si se envió bien
-            fs.unlinkSync(filePath);
-            console.log("Archivo temporal eliminado.");
-
-        } catch (sendError) {
-            console.error("❌ No se pudo enviar el reporte por WhatsApp.");
-            console.error("Detalle del error:", sendError.message);
-            console.log(`⚠️ El archivo CSV se mantiene en: ${filePath}`);
-        }
+        console.log("\n--- Proceso finalizado ---");
+        console.log("Todos los análisis han sido guardados en la colección 'analisis_conversaciones'.");
 
     } catch (error) {
         console.error("Error global:", error);
