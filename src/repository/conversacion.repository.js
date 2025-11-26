@@ -27,7 +27,7 @@ async function getMensajesCol() {
   if (!colMensajesPromise) {
     colMensajesPromise = (async () => {
       const col = mongoose.connection.db.collection("mensajes");
-      await col.createIndex({ id_conversacion: 1, createdAt: -1 }, { name: "by_conv_created_desc" });
+      await col.createIndex({ id_conversacion: 1, createdAt: -1 }, { name: "by_conv_createdAt_desc" });
       return col;
     })();
   }
